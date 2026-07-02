@@ -9,6 +9,11 @@
 
 Mod manager for Final Fantasy VII PC.
 
+> **About this fork:** this fork adds an experimental controller-first fullscreen mode
+> ("Deck mode") for the Steam Deck, launched with the `--deck` flag. It is a personal
+> project and is not affiliated with or endorsed by the Tsunamods team. The stock desktop
+> UI is unchanged. See [SPEC.md](SPEC.md) for the design.
+
 ## Introduction
 
 This is a fork of the original [7th Heaven 2.x](https://github.com/unab0mb/7h) release, maintained now by the Tsunamods team.
