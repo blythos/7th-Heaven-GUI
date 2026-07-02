@@ -59,6 +59,13 @@ namespace AppUI
 
                 SetLanguageDictionary(defaultLang);
                 SetupExceptionHandling();
+
+                // Deck mode: fullscreen controller-first UI (see SPEC.md). Replaces the
+                // StartupUri declared in App.xaml; all other startup runs unchanged.
+                if (e.Args.Any(a => a.Equals("--deck", StringComparison.OrdinalIgnoreCase)))
+                {
+                    StartupUri = new Uri("Deck/DeckShellWindow.xaml", UriKind.Relative);
+                }
             }
             else
             {
