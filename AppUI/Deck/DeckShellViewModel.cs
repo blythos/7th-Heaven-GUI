@@ -1,6 +1,7 @@
 using AppUI.Classes;
 using AppUI.Deck.Input;
 using AppUI.ViewModels;
+using Iros.Workshop;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -41,6 +42,8 @@ namespace AppUI.Deck
         private bool _isReorderMode;
         private Guid _reorderingModId;
         private int _reorderOriginalIndex;
+
+        private Options.DeckModOptionsViewModel _activeOptionsScreen;
 
         public MainWindowViewModel Main { get; }
 
@@ -165,6 +168,23 @@ namespace AppUI.Deck
             }
         }
 
+        /// <summary>Non-null while the mod options takeover is open; it receives all commands.</summary>
+        public Options.DeckModOptionsViewModel ActiveOptionsScreen
+        {
+            get { return _activeOptionsScreen; }
+            private set
+            {
+                _activeOptionsScreen = value;
+                NotifyPropertyChanged();
+                NotifyPropertyChanged(nameof(IsOptionsScreenActive));
+            }
+        }
+
+        public bool IsOptionsScreenActive
+        {
+            get { return _activeOptionsScreen != null; }
+        }
+
         /// <summary>True while the focused row is "lifted" and up/down move it in the load order.</summary>
         public bool IsReorderMode
         {
@@ -221,6 +241,12 @@ namespace AppUI.Deck
                 }
 
                 return true;
+            }
+
+            // the options takeover owns all input while open
+            if (ActiveOptionsScreen != null)
+            {
+                return ActiveOptionsScreen.HandleCommand(command);
             }
 
             // a lifted row owns navigation until dropped or cancelled
@@ -280,9 +306,12 @@ namespace AppUI.Deck
                     EnterReorderMode();
                     return true;
 
+                case DeckCommand.OpenOptions:
+                    OpenModOptions();
+                    return true;
+
                 // deferred to later milestones; consumed so nothing else reacts
                 case DeckCommand.PlayLong:
-                case DeckCommand.OpenOptions:
                 case DeckCommand.Search:
                     Logger.Info($"Deck command {command} is not implemented in this milestone");
                     return true;
@@ -395,6 +424,58 @@ namespace AppUI.Deck
             int count = Main.MyMods.ModList.Count;
             FocusedModIndex = Math.Max(0, Math.Min(count - 1, index));
         }
+
+        #region Mod options screen
+
+        private void OpenModOptions()
+        {
+            if (CurrentFocusArea != FocusArea.ModList || FocusedMod == null)
+            {
+                return;
+            }
+
+            if (FocusedMod.ActiveModInfo == null)
+            {
+                Sys.Message(new WMessage("Activate the mod before configuring its options", true));
+                return;
+            }
+
+            Options.DeckModOptionAccess access = Options.DeckModOptionAccess.TryCreate(FocusedMod);
+
+            if (access == null)
+            {
+                return; // TryCreate already reported why via Sys.Message
+            }
+
+            Logger.Info($"Deck mode: opening options for {FocusedMod.Name}");
+
+            var optionsScreen = new Options.DeckModOptionsViewModel(FocusedMod, access, onClosed: CloseModOptions);
+            optionsScreen.PropertyChanged += OptionsScreen_PropertyChanged;
+
+            ActiveOptionsScreen = optionsScreen;
+            RebuildLegend();
+        }
+
+        private void CloseModOptions()
+        {
+            if (_activeOptionsScreen != null)
+            {
+                _activeOptionsScreen.PropertyChanged -= OptionsScreen_PropertyChanged;
+            }
+
+            ActiveOptionsScreen = null;
+            RebuildLegend();
+        }
+
+        private void OptionsScreen_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(Options.DeckModOptionsViewModel.LegendItems))
+            {
+                RebuildLegend();
+            }
+        }
+
+        #endregion
 
         #region Reorder mode
 
@@ -542,6 +623,12 @@ namespace AppUI.Deck
         {
             var items = new List<DeckLegendItem>();
 
+            if (ActiveOptionsScreen != null)
+            {
+                LegendItems = ActiveOptionsScreen.LegendItems;
+                return;
+            }
+
             if (IsLaunching)
             {
                 if (LaunchFailed)
@@ -560,6 +647,7 @@ namespace AppUI.Deck
                 items.Add(new DeckLegendItem("↑↓", "Move"));
                 items.Add(new DeckLegendItem("A", "Toggle mod"));
                 items.Add(new DeckLegendItem("X", "Reorder"));
+                items.Add(new DeckLegendItem("Y", "Options"));
                 items.Add(new DeckLegendItem("B", "Back"));
                 items.Add(new DeckLegendItem("LB RB", "Section"));
                 items.Add(new DeckLegendItem("☰", "Play"));

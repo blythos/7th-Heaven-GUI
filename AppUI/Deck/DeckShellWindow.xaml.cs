@@ -24,6 +24,12 @@ namespace AppUI.Deck
 
         public DeckShellWindow()
         {
+            // Focus accent for all Deck surfaces: a fixed app-level resource for now
+            // (single accent across light/dark), deliberately not an ITheme property —
+            // flagged for a later decision.
+            App.Current.Resources["DeckAccentColor"] = System.Windows.Media.Color.FromRgb(0x2F, 0xBF, 0x71);
+            App.Current.Resources["DeckAccentBrush"] = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2F, 0xBF, 0x71));
+
             InitializeComponent();
         }
 
