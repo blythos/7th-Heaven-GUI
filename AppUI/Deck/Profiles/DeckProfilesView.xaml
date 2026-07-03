@@ -1,0 +1,117 @@
+<UserControl x:Class="AppUI.Deck.Profiles.DeckProfilesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource PrimaryAppBackground}">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*"/>
+            <ColumnDefinition Width="1"/>
+            <ColumnDefinition Width="1.2*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- profile list -->
+        <ListBox x:Name="lstProfiles"
+                 Grid.Column="0"
+                 ItemsSource="{Binding Rows}"
+                 SelectedIndex="{Binding FocusedProfileIndex, Mode=TwoWay}"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 Focusable="False"
+                 KeyboardNavigation.DirectionalNavigation="None"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 HorizontalContentAlignment="Stretch"
+                 Margin="12,24,12,12"
+                 SelectionChanged="lstProfiles_SelectionChanged">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Focusable" Value="False"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border x:Name="rowBorder"
+                                        BorderThickness="2"
+                                        BorderBrush="Transparent"
+                                        Background="{DynamicResource PrimaryControlBackground}"
+                                        Padding="16,12"
+                                        Margin="0,2">
+                                    <ContentPresenter/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                            <Condition Binding="{Binding DataContext.IsContentFocused, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter TargetName="rowBorder" Property="BorderBrush" Value="{DynamicResource DeckAccentBrush}"/>
+                                    </MultiDataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                            <Condition Binding="{Binding DataContext.IsContentFocused, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter TargetName="rowBorder" Property="Background" Value="{DynamicResource PrimaryControlMouseOver}"/>
+                                    </MultiDataTrigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding Name}"
+                                   FontSize="16"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource PrimaryControlForeground}"/>
+
+                        <Border x:Name="currentBadge"
+                                Grid.Column="1" CornerRadius="10" Padding="10,3"
+                                VerticalAlignment="Center"
+                                Background="{DynamicResource DeckAccentBrush}"
+                                Visibility="Collapsed">
+                            <TextBlock Text="Current" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#1A1A18"/>
+                        </Border>
+                    </Grid>
+                    <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                            <Setter TargetName="currentBadge" Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </DataTemplate.Triggers>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Border Grid.Column="1" Background="{DynamicResource PrimaryControlPressed}"/>
+
+        <!-- profile details -->
+        <ScrollViewer Grid.Column="2"
+                      VerticalScrollBarVisibility="Auto"
+                      Visibility="{Binding HasFocusedProfile, Converter={StaticResource BoolToVis}}">
+            <StackPanel Margin="24">
+                <TextBlock Text="{Binding FocusedProfile.Name}"
+                           FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryControlForeground}"/>
+
+                <TextBlock Text="{Binding FocusedProfile.DetailsText}"
+                           FontFamily="Consolas" FontSize="13"
+                           Margin="0,16,0,0" TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryControlSecondary}"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

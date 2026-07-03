@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:options="clr-namespace:AppUI.Deck.Options"
         xmlns:catalog="clr-namespace:AppUI.Deck.Catalog"
+        xmlns:profiles="clr-namespace:AppUI.Deck.Profiles"
         Title="7th Heaven"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -26,52 +27,67 @@
     <Grid>
         <Grid>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="1"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="1"/>
                 <RowDefinition Height="56"/>
             </Grid.RowDefinitions>
 
-            <!-- main content: sidebar | mod list | details -->
-            <Grid Grid.Row="0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="250"/>
-                    <ColumnDefinition Width="1"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="1"/>
-                    <ColumnDefinition Width="380"/>
-                </Grid.ColumnDefinitions>
+            <!-- top bar: sections left, current profile right -->
+            <DockPanel Grid.Row="0" Margin="16,10">
+                <TextBlock DockPanel.Dock="Right"
+                           VerticalAlignment="Center"
+                           Margin="12,0"
+                           FontSize="14"
+                           Foreground="{DynamicResource PrimaryControlSecondary}">
+                    <Run Text="Profile:"/> <Run Text="{Binding Main.CurrentProfile, Mode=OneWay}"/>
+                </TextBlock>
 
-                <!-- sidebar -->
-                <ItemsControl Grid.Column="0" ItemsSource="{Binding Sections}" Margin="0,24,0,0" Focusable="False">
+                <ItemsControl ItemsSource="{Binding Sections}" Focusable="False">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border x:Name="rowBorder"
+                            <Border x:Name="tabBorder"
                                     BorderThickness="2"
                                     BorderBrush="Transparent"
                                     Background="Transparent"
-                                    Padding="18,12"
-                                    Margin="12,2">
+                                    Padding="20,10"
+                                    Margin="4,0">
                                 <TextBlock Text="{Binding Title}"
                                            FontSize="17"
                                            Foreground="{DynamicResource PrimaryControlForeground}"/>
                             </Border>
                             <DataTemplate.Triggers>
                                 <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                                    <Setter TargetName="rowBorder" Property="Background" Value="{DynamicResource PrimaryControlMouseOver}"/>
+                                    <Setter TargetName="tabBorder" Property="Background" Value="{DynamicResource PrimaryControlMouseOver}"/>
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding IsFocused}" Value="True">
-                                    <Setter TargetName="rowBorder" Property="BorderBrush" Value="{DynamicResource DeckAccentBrush}"/>
+                                    <Setter TargetName="tabBorder" Property="BorderBrush" Value="{DynamicResource DeckAccentBrush}"/>
                                 </DataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+            </DockPanel>
 
-                <Border Grid.Column="1" Background="{DynamicResource PrimaryControlPressed}"/>
+            <Border Grid.Row="1" Background="{DynamicResource PrimaryControlPressed}"/>
 
-                <!-- center: my mods list -->
+            <!-- content -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1*"/>
+                    <ColumnDefinition Width="1"/>
+                    <ColumnDefinition Width="1.2*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- my mods list -->
                 <ListBox x:Name="lstMods"
-                         Grid.Column="2"
+                         Grid.Column="0"
                          ItemsSource="{Binding Main.MyMods.ModList}"
                          SelectedIndex="{Binding FocusedModIndex, Mode=TwoWay}"
                          Visibility="{Binding IsModListVisible, Converter={StaticResource BoolToVis}}"
@@ -81,7 +97,7 @@
                          KeyboardNavigation.DirectionalNavigation="None"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          HorizontalContentAlignment="Stretch"
-                         Margin="12,24,12,12"
+                         Margin="12,16,12,12"
                          SelectionChanged="lstMods_SelectionChanged">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
@@ -104,14 +120,14 @@
                                             <MultiDataTrigger>
                                                 <MultiDataTrigger.Conditions>
                                                     <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
-                                                    <Condition Binding="{Binding DataContext.IsModListFocused, RelativeSource={RelativeSource AncestorType=Window}}" Value="True"/>
+                                                    <Condition Binding="{Binding DataContext.IsContentFocused, RelativeSource={RelativeSource AncestorType=Window}}" Value="True"/>
                                                 </MultiDataTrigger.Conditions>
                                                 <Setter TargetName="rowBorder" Property="BorderBrush" Value="{DynamicResource DeckAccentBrush}"/>
                                             </MultiDataTrigger>
                                             <MultiDataTrigger>
                                                 <MultiDataTrigger.Conditions>
                                                     <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
-                                                    <Condition Binding="{Binding DataContext.IsModListFocused, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
+                                                    <Condition Binding="{Binding DataContext.IsContentFocused, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                 </MultiDataTrigger.Conditions>
                                                 <Setter TargetName="rowBorder" Property="Background" Value="{DynamicResource PrimaryControlMouseOver}"/>
                                             </MultiDataTrigger>
@@ -170,78 +186,79 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <!-- center: play section -->
-                <StackPanel Grid.Column="2"
-                            VerticalAlignment="Center" HorizontalAlignment="Center"
-                            Visibility="{Binding IsPlaySectionVisible, Converter={StaticResource BoolToVis}}">
-                    <TextBlock Text="Final Fantasy VII" FontSize="30"
-                               Foreground="{DynamicResource PrimaryControlForeground}"
-                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="Press A to launch with the current profile"
-                               Style="{StaticResource DeckSecondaryText}"
-                               Margin="0,10,0,0" HorizontalAlignment="Center"/>
-                </StackPanel>
-
-                <!-- center: placeholder for later-milestone sections -->
-                <TextBlock Grid.Column="2"
+                <!-- placeholder for later-milestone sections -->
+                <TextBlock Grid.Column="0" Grid.ColumnSpan="3"
                            Text="{Binding PlaceholderText}"
                            Style="{StaticResource DeckSecondaryText}"
                            VerticalAlignment="Center" HorizontalAlignment="Center"
                            Visibility="{Binding IsPlaceholderVisible, Converter={StaticResource BoolToVis}}"/>
 
-                <Border Grid.Column="3" Background="{DynamicResource PrimaryControlPressed}"/>
+                <Border Grid.Column="1" Background="{DynamicResource PrimaryControlPressed}"
+                        Visibility="{Binding IsModListVisible, Converter={StaticResource BoolToVis}}"/>
 
-                <!-- details pane (passive mirror of the focused row) -->
-                <Grid Grid.Column="4">
-                    <StackPanel Margin="24"
-                                Visibility="{Binding HasFocusedMod, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="{Binding FocusedMod.Name}"
-                                   FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource PrimaryControlForeground}"/>
+                <!-- my mods details pane (passive mirror of the focused row) -->
+                <Grid Grid.Column="2"
+                      Visibility="{Binding IsModListVisible, Converter={StaticResource BoolToVis}}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  Visibility="{Binding HasFocusedMod, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Margin="24">
+                            <TextBlock Text="{Binding FocusedMod.Name}"
+                                       FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource PrimaryControlForeground}"/>
 
-                        <TextBlock Margin="0,6,0,18">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource DeckSecondaryText}">
-                                    <Setter Property="Text" Value="Inactive"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding FocusedMod.IsActive}" Value="True">
-                                            <Setter Property="Text" Value="Active"/>
-                                            <Setter Property="Foreground" Value="{DynamicResource DeckAccentBrush}"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                            <TextBlock Margin="0,6,0,18">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DeckSecondaryText}">
+                                        <Setter Property="Text" Value="Inactive"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding FocusedMod.IsActive}" Value="True">
+                                                <Setter Property="Text" Value="Active"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource DeckAccentBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
 
-                        <TextBlock Text="Author" Style="{StaticResource DeckSecondaryText}"/>
-                        <TextBlock Text="{Binding FocusedMod.Author}" Style="{StaticResource DeckBodyText}" Margin="0,2,0,12" TextWrapping="Wrap"/>
+                            <TextBlock Text="Author" Style="{StaticResource DeckSecondaryText}"/>
+                            <TextBlock Text="{Binding FocusedMod.Author}" Style="{StaticResource DeckBodyText}" Margin="0,2,0,12" TextWrapping="Wrap"/>
 
-                        <TextBlock Text="Version" Style="{StaticResource DeckSecondaryText}"/>
-                        <TextBlock Text="{Binding FocusedMod.Version}" Style="{StaticResource DeckBodyText}" Margin="0,2,0,12"/>
+                            <TextBlock Text="Version" Style="{StaticResource DeckSecondaryText}"/>
+                            <TextBlock Text="{Binding FocusedMod.Version}" Style="{StaticResource DeckBodyText}" Margin="0,2,0,12"/>
 
-                        <TextBlock Text="Category" Style="{StaticResource DeckSecondaryText}"/>
-                        <TextBlock Text="{Binding FocusedMod.Category}" Style="{StaticResource DeckBodyText}" Margin="0,2,0,12"/>
+                            <TextBlock Text="Category" Style="{StaticResource DeckSecondaryText}"/>
+                            <TextBlock Text="{Binding FocusedMod.Category}" Style="{StaticResource DeckBodyText}" Margin="0,2,0,12"/>
 
-                        <TextBlock Text="Release date" Style="{StaticResource DeckSecondaryText}"/>
-                        <TextBlock Text="{Binding FocusedMod.ReleaseDate}" Style="{StaticResource DeckBodyText}" Margin="0,2,0,12"/>
-                    </StackPanel>
+                            <TextBlock Text="Release date" Style="{StaticResource DeckSecondaryText}"/>
+                            <TextBlock Text="{Binding FocusedMod.ReleaseDate}" Style="{StaticResource DeckBodyText}" Margin="0,2,0,16"/>
+
+                            <TextBlock Text="{Binding FocusedMod.InstallInfo.CachedDetails.Description}"
+                                       FontSize="14" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource PrimaryControlSecondary}"/>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
 
-                <!-- catalog section: covers the center and details columns with its own layout -->
-                <catalog:DeckCatalogView Grid.Column="2" Grid.ColumnSpan="3"
+                <!-- catalog section -->
+                <catalog:DeckCatalogView Grid.Column="0" Grid.ColumnSpan="3"
                                          DataContext="{Binding CatalogSection}"
                                          Visibility="{Binding DataContext.IsCatalogVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
+
+                <!-- profiles section -->
+                <profiles:DeckProfilesView Grid.Column="0" Grid.ColumnSpan="3"
+                                           DataContext="{Binding ProfilesSection}"
+                                           Visibility="{Binding DataContext.IsProfilesVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
             </Grid>
 
-            <!-- mod options takeover: covers the content columns, keeps the legend visible -->
-            <options:DeckModOptionsView Grid.Row="0"
+            <!-- mod options takeover: covers the top bar and content, keeps the legend visible -->
+            <options:DeckModOptionsView Grid.Row="0" Grid.RowSpan="3"
                                         DataContext="{Binding ActiveOptionsScreen}"
                                         Visibility="{Binding DataContext.IsOptionsScreenActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
 
-            <Border Grid.Row="1" Background="{DynamicResource PrimaryControlPressed}"/>
+            <Border Grid.Row="3" Background="{DynamicResource PrimaryControlPressed}"/>
 
             <!-- contextual button legend -->
-            <ItemsControl Grid.Row="2"
+            <ItemsControl Grid.Row="4"
                           ItemsSource="{Binding LegendItems}"
                           VerticalAlignment="Center"
                           Margin="24,0"
@@ -272,6 +289,21 @@
             </ItemsControl>
         </Grid>
 
+        <!-- quit prompt -->
+        <Grid Background="#B3141414"
+              Visibility="{Binding IsQuitPromptOpen, Converter={StaticResource BoolToVis}}">
+            <Border Background="{DynamicResource SecondaryAppBackground}"
+                    Padding="36,28"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Quit 7th Heaven?" FontSize="20"
+                               Foreground="{DynamicResource PrimaryControlForeground}"/>
+                    <TextBlock Text="Enter quits · Esc cancels" Margin="0,10,0,0"
+                               Style="{StaticResource DeckSecondaryText}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
         <!-- inline launch overlay -->
         <Grid Background="#E6141414"
               Visibility="{Binding IsLaunching, Converter={StaticResource BoolToVis}}">
@@ -296,7 +328,7 @@
                                    TextWrapping="Wrap"/>
                     </ScrollViewer>
 
-                    <TextBlock Grid.Row="2" Text="Press Esc (B) to dismiss" Margin="0,14,0,0"
+                    <TextBlock Grid.Row="2" Text="Press Esc to dismiss" Margin="0,14,0,0"
                                Style="{StaticResource DeckSecondaryText}"
                                Visibility="{Binding LaunchFailed, Converter={StaticResource BoolToVis}}"/>
                 </Grid>

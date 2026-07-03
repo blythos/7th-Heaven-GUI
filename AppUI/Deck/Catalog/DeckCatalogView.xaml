@@ -8,11 +8,11 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="260"/>
+            <ColumnDefinition Width="240"/>
             <ColumnDefinition Width="1"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="1*"/>
             <ColumnDefinition Width="1"/>
-            <ColumnDefinition Width="380"/>
+            <ColumnDefinition Width="1.2*"/>
         </Grid.ColumnDefinitions>
 
         <!-- category column -->

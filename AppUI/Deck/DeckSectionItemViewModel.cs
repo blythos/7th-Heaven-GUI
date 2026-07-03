@@ -4,15 +4,14 @@ namespace AppUI.Deck
 {
     public enum DeckSection
     {
-        Play,
         MyMods,
         BrowseCatalog,
-        LoadOrder,
+        Profiles,
         Settings,
     }
 
     /// <summary>
-    /// A sidebar entry in the Deck shell.
+    /// A top-bar section entry in the Deck shell.
     /// </summary>
     public class DeckSectionItemViewModel : ViewModelBase
     {

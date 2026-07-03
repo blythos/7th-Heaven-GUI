@@ -24,12 +24,13 @@ namespace AppUI.Deck
 
         public enum FocusArea
         {
-            Sidebar,
-            ModList,
+            TopBar,
+            Content,
         }
 
-        private FocusArea _focusArea = FocusArea.Sidebar;
-        private int _currentSectionIndex = 1; // start on My mods
+        private FocusArea _focusArea = FocusArea.TopBar;
+        private int _currentSectionIndex = 0; // start on My mods
+        private bool _isQuitPromptOpen;
         private int _focusedModIndex = -1;
         private InstalledModViewModel _focusedMod;
         private List<DeckLegendItem> _legendItems = new List<DeckLegendItem>();
@@ -49,6 +50,8 @@ namespace AppUI.Deck
 
         public Catalog.DeckCatalogViewModel CatalogSection { get; }
 
+        public Profiles.DeckProfilesViewModel ProfilesSection { get; }
+
         public ObservableCollection<DeckSectionItemViewModel> Sections { get; }
 
         public DeckShellViewModel(MainWindowViewModel main)
@@ -57,10 +60,9 @@ namespace AppUI.Deck
 
             Sections = new ObservableCollection<DeckSectionItemViewModel>()
             {
-                new DeckSectionItemViewModel(DeckSection.Play, "Play"),
                 new DeckSectionItemViewModel(DeckSection.MyMods, "My mods"),
                 new DeckSectionItemViewModel(DeckSection.BrowseCatalog, "Browse catalog"),
-                new DeckSectionItemViewModel(DeckSection.LoadOrder, "Load order"),
+                new DeckSectionItemViewModel(DeckSection.Profiles, "Profiles"),
                 new DeckSectionItemViewModel(DeckSection.Settings, "Settings"),
             };
 
@@ -69,8 +71,19 @@ namespace AppUI.Deck
             CatalogSection = new Catalog.DeckCatalogViewModel(main.CatalogMods);
             CatalogSection.PropertyChanged += CatalogSection_PropertyChanged;
 
+            ProfilesSection = new Profiles.DeckProfilesViewModel(main);
+            ProfilesSection.PropertyChanged += ProfilesSection_PropertyChanged;
+
             UpdateSectionFlags();
             RebuildLegend();
+        }
+
+        private void ProfilesSection_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(Profiles.DeckProfilesViewModel.LegendItems))
+            {
+                RebuildLegend();
+            }
         }
 
         private void CatalogSection_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -114,25 +127,42 @@ namespace AppUI.Deck
             {
                 _focusArea = value;
                 NotifyPropertyChanged();
-                NotifyPropertyChanged(nameof(IsModListFocused));
+                NotifyPropertyChanged(nameof(IsContentFocused));
                 UpdateSectionFlags();
-                UpdateCatalogFocus();
+                UpdateContentFocusFlags();
                 RebuildLegend();
             }
         }
 
-        private void UpdateCatalogFocus()
+        private void UpdateContentFocusFlags()
         {
             if (CatalogSection != null)
             {
                 CatalogSection.IsContentFocused =
-                    (_focusArea == FocusArea.ModList && CurrentSection == DeckSection.BrowseCatalog);
+                    (_focusArea == FocusArea.Content && CurrentSection == DeckSection.BrowseCatalog);
+            }
+
+            if (ProfilesSection != null)
+            {
+                ProfilesSection.IsContentFocused =
+                    (_focusArea == FocusArea.Content && CurrentSection == DeckSection.Profiles);
             }
         }
 
-        public bool IsModListFocused
+        public bool IsContentFocused
         {
-            get { return _focusArea == FocusArea.ModList; }
+            get { return _focusArea == FocusArea.Content; }
+        }
+
+        public bool IsQuitPromptOpen
+        {
+            get { return _isQuitPromptOpen; }
+            private set
+            {
+                _isQuitPromptOpen = value;
+                NotifyPropertyChanged();
+                RebuildLegend();
+            }
         }
 
         public int FocusedModIndex
@@ -167,32 +197,24 @@ namespace AppUI.Deck
             get { return CurrentSection == DeckSection.MyMods; }
         }
 
-        public bool IsPlaySectionVisible
-        {
-            get { return CurrentSection == DeckSection.Play; }
-        }
-
         public bool IsCatalogVisible
         {
             get { return CurrentSection == DeckSection.BrowseCatalog; }
         }
 
+        public bool IsProfilesVisible
+        {
+            get { return CurrentSection == DeckSection.Profiles; }
+        }
+
         public bool IsPlaceholderVisible
         {
-            get { return !IsModListVisible && !IsPlaySectionVisible && !IsCatalogVisible; }
+            get { return CurrentSection == DeckSection.Settings; }
         }
 
         public string PlaceholderText
         {
-            get
-            {
-                switch (CurrentSection)
-                {
-                    case DeckSection.LoadOrder: return "Load order is coming in a later milestone.";
-                    case DeckSection.Settings: return "Settings is coming in a later milestone.";
-                    default: return "";
-                }
-            }
+            get { return CurrentSection == DeckSection.Settings ? "Settings is coming in a later milestone." : ""; }
         }
 
         public List<DeckLegendItem> LegendItems
@@ -280,6 +302,21 @@ namespace AppUI.Deck
                 return true;
             }
 
+            if (IsQuitPromptOpen)
+            {
+                if (command == DeckCommand.Activate)
+                {
+                    Logger.Info("Deck mode: quitting via quit prompt");
+                    App.ShutdownApp();
+                }
+                else if (command == DeckCommand.Back)
+                {
+                    IsQuitPromptOpen = false;
+                }
+
+                return true;
+            }
+
             // the options takeover owns all input while open
             if (ActiveOptionsScreen != null)
             {
@@ -292,13 +329,19 @@ namespace AppUI.Deck
                 return HandleReorderModeCommand(command);
             }
 
-            // catalog content handles its own two-column navigation; commands it
-            // declines (sections, play, back at its root) fall through to the shell
-            if (CurrentSection == DeckSection.BrowseCatalog
-                && (CurrentFocusArea == FocusArea.ModList || CatalogSection.IsSearchOverlayOpen)
-                && CatalogSection.HandleCommand(command))
+            // section content handles its own navigation first; commands it declines
+            // (sections, play, back/up at its root) fall through to the shell
+            if (CurrentFocusArea == FocusArea.Content || CatalogSection.IsSearchOverlayOpen)
             {
-                return true;
+                if (CurrentSection == DeckSection.BrowseCatalog && CatalogSection.HandleCommand(command))
+                {
+                    return true;
+                }
+
+                if (CurrentSection == DeckSection.Profiles && ProfilesSection.HandleCommand(command))
+                {
+                    return true;
+                }
             }
 
             switch (command)
@@ -312,30 +355,63 @@ namespace AppUI.Deck
                     return true;
 
                 case DeckCommand.NavigateUp:
-                    return HandleNavigateVertical(-1);
+                    if (CurrentFocusArea == FocusArea.Content)
+                    {
+                        // My mods moves within its list; other sections reach here only
+                        // when their content declined (top of list) — exit to the top bar
+                        if (CurrentSection == DeckSection.MyMods && FocusedModIndex > 0)
+                        {
+                            MoveModFocus(-1);
+                        }
+                        else
+                        {
+                            CurrentFocusArea = FocusArea.TopBar;
+                        }
+                    }
+
+                    return true;
 
                 case DeckCommand.NavigateDown:
-                    return HandleNavigateVertical(1);
+                    if (CurrentFocusArea == FocusArea.TopBar)
+                    {
+                        TryFocusContent();
+                    }
+                    else if (CurrentSection == DeckSection.MyMods)
+                    {
+                        MoveModFocus(1);
+                    }
+
+                    return true;
 
                 case DeckCommand.NavigateLeft:
-                    if (CurrentFocusArea == FocusArea.ModList)
+                    if (CurrentFocusArea == FocusArea.TopBar)
                     {
-                        CurrentFocusArea = FocusArea.Sidebar;
+                        MoveSection(-1);
                     }
+
                     return true;
 
                 case DeckCommand.NavigateRight:
-                    TryFocusModList();
+                    if (CurrentFocusArea == FocusArea.TopBar)
+                    {
+                        MoveSection(1);
+                    }
+
                     return true;
 
                 case DeckCommand.Activate:
                     return HandleActivate();
 
                 case DeckCommand.Back:
-                    if (CurrentFocusArea == FocusArea.ModList)
+                    if (CurrentFocusArea == FocusArea.Content)
                     {
-                        CurrentFocusArea = FocusArea.Sidebar;
+                        CurrentFocusArea = FocusArea.TopBar;
                     }
+                    else
+                    {
+                        IsQuitPromptOpen = true;
+                    }
+
                     return true;
 
                 case DeckCommand.PageUp:
@@ -372,33 +448,13 @@ namespace AppUI.Deck
             int count = Sections.Count;
             _currentSectionIndex = (_currentSectionIndex + change + count) % count;
 
-            CurrentFocusArea = FocusArea.Sidebar;
+            CurrentFocusArea = FocusArea.TopBar;
             NotifySectionChanged();
-        }
-
-        private bool HandleNavigateVertical(int change)
-        {
-            if (CurrentFocusArea == FocusArea.Sidebar)
-            {
-                int target = _currentSectionIndex + change;
-
-                if (target >= 0 && target < Sections.Count)
-                {
-                    _currentSectionIndex = target;
-                    NotifySectionChanged();
-                    UpdateSectionFlags();
-                }
-
-                return true;
-            }
-
-            MoveModFocus(change);
-            return true;
         }
 
         private bool HandlePageJump(int change)
         {
-            if (CurrentFocusArea == FocusArea.ModList)
+            if (CurrentFocusArea == FocusArea.Content && CurrentSection == DeckSection.MyMods)
             {
                 MoveModFocus(change);
             }
@@ -421,25 +477,21 @@ namespace AppUI.Deck
 
         private bool HandleActivate()
         {
-            if (CurrentFocusArea == FocusArea.Sidebar)
+            if (CurrentFocusArea == FocusArea.TopBar)
             {
-                if (CurrentSection == DeckSection.Play)
-                {
-                    StartLaunch();
-                }
-                else
-                {
-                    TryFocusModList();
-                }
-
+                TryFocusContent();
                 return true;
             }
 
-            ToggleFocusedMod();
+            if (CurrentSection == DeckSection.MyMods)
+            {
+                ToggleFocusedMod();
+            }
+
             return true;
         }
 
-        private void TryFocusModList()
+        private void TryFocusContent()
         {
             if (CurrentSection == DeckSection.MyMods && Main.MyMods.ModList.Any())
             {
@@ -448,11 +500,15 @@ namespace AppUI.Deck
                     FocusedModIndex = 0;
                 }
 
-                CurrentFocusArea = FocusArea.ModList;
+                CurrentFocusArea = FocusArea.Content;
             }
             else if (CurrentSection == DeckSection.BrowseCatalog && CatalogSection.OnFocusEntered())
             {
-                CurrentFocusArea = FocusArea.ModList;
+                CurrentFocusArea = FocusArea.Content;
+            }
+            else if (CurrentSection == DeckSection.Profiles && ProfilesSection.OnFocusEntered())
+            {
+                CurrentFocusArea = FocusArea.Content;
             }
         }
 
@@ -477,7 +533,7 @@ namespace AppUI.Deck
 
         private void OpenModOptions()
         {
-            if (CurrentFocusArea != FocusArea.ModList || FocusedMod == null)
+            if (CurrentFocusArea != FocusArea.Content || CurrentSection != DeckSection.MyMods || FocusedMod == null)
             {
                 return;
             }
@@ -529,7 +585,7 @@ namespace AppUI.Deck
 
         private void EnterReorderMode()
         {
-            if (CurrentFocusArea != FocusArea.ModList || FocusedMod == null)
+            if (CurrentFocusArea != FocusArea.Content || CurrentSection != DeckSection.MyMods || FocusedMod == null)
             {
                 return;
             }
@@ -633,11 +689,11 @@ namespace AppUI.Deck
         {
             NotifyPropertyChanged(nameof(CurrentSection));
             NotifyPropertyChanged(nameof(IsModListVisible));
-            NotifyPropertyChanged(nameof(IsPlaySectionVisible));
             NotifyPropertyChanged(nameof(IsCatalogVisible));
+            NotifyPropertyChanged(nameof(IsProfilesVisible));
             NotifyPropertyChanged(nameof(IsPlaceholderVisible));
             NotifyPropertyChanged(nameof(PlaceholderText));
-            UpdateCatalogFocus();
+            UpdateContentFocusFlags();
             RebuildLegend();
         }
 
@@ -646,7 +702,7 @@ namespace AppUI.Deck
             for (int i = 0; i < Sections.Count; i++)
             {
                 Sections[i].IsCurrent = (i == _currentSectionIndex);
-                Sections[i].IsFocused = (i == _currentSectionIndex && CurrentFocusArea == FocusArea.Sidebar);
+                Sections[i].IsFocused = (i == _currentSectionIndex && CurrentFocusArea == FocusArea.TopBar);
             }
         }
 
@@ -679,10 +735,27 @@ namespace AppUI.Deck
                 return;
             }
 
+            if (IsQuitPromptOpen)
+            {
+                LegendItems = new List<DeckLegendItem>()
+                {
+                    DeckGlyphs.Item(DeckLegendInput.Activate, "Quit"),
+                    DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"),
+                };
+                return;
+            }
+
             if (!IsLaunching && CurrentSection == DeckSection.BrowseCatalog
-                && (CurrentFocusArea == FocusArea.ModList || CatalogSection.IsSearchOverlayOpen))
+                && (CurrentFocusArea == FocusArea.Content || CatalogSection.IsSearchOverlayOpen))
             {
                 LegendItems = CatalogSection.LegendItems;
+                return;
+            }
+
+            if (!IsLaunching && CurrentSection == DeckSection.Profiles
+                && CurrentFocusArea == FocusArea.Content)
+            {
+                LegendItems = ProfilesSection.LegendItems;
                 return;
             }
 
@@ -699,7 +772,7 @@ namespace AppUI.Deck
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Drop"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"));
             }
-            else if (CurrentFocusArea == FocusArea.ModList)
+            else if (CurrentFocusArea == FocusArea.Content)
             {
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Toggle mod"));
@@ -711,9 +784,9 @@ namespace AppUI.Deck
             }
             else
             {
-                items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
-                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, CurrentSection == DeckSection.Play ? "Play" : "Select"));
-                items.Add(DeckGlyphs.Item(DeckLegendInput.Sections, "Section"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.LeftRight, "Section"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Select"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Quit"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Play, "Play"));
             }
 

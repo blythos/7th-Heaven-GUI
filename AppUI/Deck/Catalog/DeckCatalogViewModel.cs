@@ -252,6 +252,12 @@ namespace AppUI.Deck.Catalog
             switch (command)
             {
                 case DeckCommand.NavigateUp:
+                    // at the top of the focused column the shell takes over (top bar)
+                    if (FocusedIndexOfColumn() <= 0)
+                    {
+                        return false;
+                    }
+
                     MoveFocus(-1);
                     return true;
 
@@ -319,6 +325,11 @@ namespace AppUI.Deck.Catalog
                 default:
                     return false; // sections, play etc. stay with the shell
             }
+        }
+
+        private int FocusedIndexOfColumn()
+        {
+            return _focusedColumn == CatalogColumn.Categories ? FocusedCategoryIndex : FocusedModIndex;
         }
 
         private void MoveFocus(int change)
