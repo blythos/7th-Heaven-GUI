@@ -668,10 +668,16 @@ namespace AppUI.Deck.Profiles
             }
         }
 
+        public string ConfirmHint
+        {
+            get { return DeckGlyphs.ConfirmHint("confirms"); }
+        }
+
         /// <summary>Rebuilds legend glyphs after the active input device changes.</summary>
         public void RefreshLegend()
         {
             RebuildLegend();
+            NotifyPropertyChanged(nameof(ConfirmHint));
         }
 
         private void RebuildLegend()

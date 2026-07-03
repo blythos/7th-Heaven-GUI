@@ -220,7 +220,7 @@
                 <TextBlock Text="{Binding ConfirmText}"
                            FontSize="17" TextWrapping="Wrap"
                            Foreground="{DynamicResource PrimaryControlForeground}"/>
-                <TextBlock Text="Enter confirms · Esc cancels" Margin="0,12,0,0"
+                <TextBlock Text="{Binding ConfirmHint}" Margin="0,12,0,0"
                            FontSize="13"
                            Foreground="{DynamicResource PrimaryControlSecondary}"/>
             </StackPanel>

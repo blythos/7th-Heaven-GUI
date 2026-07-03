@@ -109,6 +109,31 @@ namespace AppUI.Deck
             SettingsSection.RefreshLegend();
             ActiveOptionsScreen?.RefreshLegend();
             RebuildLegend();
+
+            NotifyPropertyChanged(nameof(QuitPromptHint));
+            NotifyPropertyChanged(nameof(PlayConfirmHint));
+            NotifyPropertyChanged(nameof(PlayPickerHint));
+            NotifyPropertyChanged(nameof(LaunchDismissHint));
+        }
+
+        public string QuitPromptHint
+        {
+            get { return DeckGlyphs.ConfirmHint("quits"); }
+        }
+
+        public string PlayConfirmHint
+        {
+            get { return DeckGlyphs.ConfirmHint("launches"); }
+        }
+
+        public string PlayPickerHint
+        {
+            get { return $"Sets what the play button does. {DeckGlyphs.ConfirmHint("confirms")}"; }
+        }
+
+        public string LaunchDismissHint
+        {
+            get { return $"Press {DeckGlyphs.Get(DeckLegendInput.Back)} to dismiss"; }
         }
 
         private void SettingsSection_PropertyChanged(object sender, PropertyChangedEventArgs e)

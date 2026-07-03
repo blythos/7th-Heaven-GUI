@@ -51,6 +51,12 @@ namespace AppUI.Deck
             return new DeckLegendItem(Get(input), label, GetCommand(input));
         }
 
+        /// <summary>Device-sensitive confirm/cancel hint, e.g. "Enter quits · Esc cancels" or "A quits · B cancels".</summary>
+        public static string ConfirmHint(string confirmVerb)
+        {
+            return $"{Get(DeckLegendInput.Activate)} {confirmVerb} · {Get(DeckLegendInput.Back)} cancels";
+        }
+
         /// <summary>The single logical command a legend entry maps to for mouse clicks (null for multi-direction hints).</summary>
         private static Input.DeckCommand? GetCommand(DeckLegendInput input)
         {
