@@ -38,6 +38,10 @@ namespace AppUI.Deck
         private string _launchStatusLog = "";
         private GameLaunchViewModel _launchViewModel;
 
+        private bool _isReorderMode;
+        private Guid _reorderingModId;
+        private int _reorderOriginalIndex;
+
         public MainWindowViewModel Main { get; }
 
         public ObservableCollection<DeckSectionItemViewModel> Sections { get; }
@@ -161,6 +165,17 @@ namespace AppUI.Deck
             }
         }
 
+        /// <summary>True while the focused row is "lifted" and up/down move it in the load order.</summary>
+        public bool IsReorderMode
+        {
+            get { return _isReorderMode; }
+            private set
+            {
+                _isReorderMode = value;
+                NotifyPropertyChanged();
+            }
+        }
+
         #region Launch state
 
         public bool IsLaunching
@@ -206,6 +221,12 @@ namespace AppUI.Deck
                 }
 
                 return true;
+            }
+
+            // a lifted row owns navigation until dropped or cancelled
+            if (IsReorderMode)
+            {
+                return HandleReorderModeCommand(command);
             }
 
             switch (command)
@@ -255,11 +276,14 @@ namespace AppUI.Deck
                     StartLaunch();
                     return true;
 
+                case DeckCommand.ReorderToggle:
+                    EnterReorderMode();
+                    return true;
+
                 // deferred to later milestones; consumed so nothing else reacts
                 case DeckCommand.PlayLong:
                 case DeckCommand.OpenOptions:
                 case DeckCommand.Search:
-                case DeckCommand.ReorderToggle:
                     Logger.Info($"Deck command {command} is not implemented in this milestone");
                     return true;
 
@@ -372,6 +396,110 @@ namespace AppUI.Deck
             FocusedModIndex = Math.Max(0, Math.Min(count - 1, index));
         }
 
+        #region Reorder mode
+
+        private void EnterReorderMode()
+        {
+            if (CurrentFocusArea != FocusArea.ModList || FocusedMod == null)
+            {
+                return;
+            }
+
+            _reorderingModId = FocusedMod.InstallInfo.ModID;
+            _reorderOriginalIndex = FocusedModIndex;
+            IsReorderMode = true;
+            RebuildLegend();
+        }
+
+        private bool HandleReorderModeCommand(DeckCommand command)
+        {
+            switch (command)
+            {
+                case DeckCommand.NavigateUp:
+                    MoveReorderingMod(-1);
+                    return true;
+
+                case DeckCommand.NavigateDown:
+                    MoveReorderingMod(1);
+                    return true;
+
+                case DeckCommand.ReorderToggle:
+                case DeckCommand.Activate:
+                    // drop: ReorderProfileItem already persisted each move to the profile
+                    ExitReorderMode();
+                    return true;
+
+                case DeckCommand.Back:
+                    CancelReorder();
+                    return true;
+
+                default:
+                    // everything else is inert while a row is lifted
+                    return true;
+            }
+        }
+
+        private void MoveReorderingMod(int change)
+        {
+            InstalledModViewModel mod = FindReorderingMod();
+
+            if (mod == null)
+            {
+                // the mod vanished (e.g. removed from filesystem mid-reorder)
+                ExitReorderMode();
+                return;
+            }
+
+            Main.MyMods.ReorderProfileItem(mod, change);
+            FollowReorderingMod();
+        }
+
+        private void CancelReorder()
+        {
+            InstalledModViewModel mod = FindReorderingMod();
+
+            if (mod != null)
+            {
+                int currentIndex = Main.MyMods.ModList.IndexOf(mod);
+                int delta = _reorderOriginalIndex - currentIndex;
+
+                if (delta != 0)
+                {
+                    Main.MyMods.ReorderProfileItem(mod, delta);
+                }
+
+                FollowReorderingMod();
+            }
+
+            ExitReorderMode();
+        }
+
+        private void ExitReorderMode()
+        {
+            IsReorderMode = false;
+            RebuildLegend();
+        }
+
+        /// <summary>
+        /// Reload recreates the row viewmodels, so the lifted mod is tracked by id.
+        /// </summary>
+        private InstalledModViewModel FindReorderingMod()
+        {
+            return Main.MyMods.ModList.FirstOrDefault(m => m.InstallInfo.ModID == _reorderingModId);
+        }
+
+        private void FollowReorderingMod()
+        {
+            InstalledModViewModel mod = FindReorderingMod();
+
+            if (mod != null)
+            {
+                FocusedModIndex = Main.MyMods.ModList.IndexOf(mod);
+            }
+        }
+
+        #endregion
+
         private void NotifySectionChanged()
         {
             NotifyPropertyChanged(nameof(CurrentSection));
@@ -421,10 +549,17 @@ namespace AppUI.Deck
                     items.Add(new DeckLegendItem("B", "Dismiss"));
                 }
             }
+            else if (IsReorderMode)
+            {
+                items.Add(new DeckLegendItem("↑↓", "Move mod"));
+                items.Add(new DeckLegendItem("A", "Drop"));
+                items.Add(new DeckLegendItem("B", "Cancel"));
+            }
             else if (CurrentFocusArea == FocusArea.ModList)
             {
                 items.Add(new DeckLegendItem("↑↓", "Move"));
                 items.Add(new DeckLegendItem("A", "Toggle mod"));
+                items.Add(new DeckLegendItem("X", "Reorder"));
                 items.Add(new DeckLegendItem("B", "Back"));
                 items.Add(new DeckLegendItem("LB RB", "Section"));
                 items.Add(new DeckLegendItem("☰", "Play"));

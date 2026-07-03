@@ -118,6 +118,14 @@
                                                 </MultiDataTrigger.Conditions>
                                                 <Setter TargetName="rowBorder" Property="Background" Value="{DynamicResource PrimaryControlMouseOver}"/>
                                             </MultiDataTrigger>
+                                            <!-- reorder mode: the lifted (selected) row stays full opacity, the rest dim -->
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="False"/>
+                                                    <Condition Binding="{Binding DataContext.IsReorderMode, RelativeSource={RelativeSource AncestorType=Window}}" Value="True"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter TargetName="rowBorder" Property="Opacity" Value="0.4"/>
+                                            </MultiDataTrigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Setter.Value>
