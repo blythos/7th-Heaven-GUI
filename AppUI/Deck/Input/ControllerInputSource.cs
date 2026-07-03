@@ -1,16 +1,16 @@
-using AppUI.Classes;
-using SharpDX.DirectInput;
 using System;
+using System.Runtime.InteropServices;
 using System.Windows.Threading;
 
 namespace AppUI.Deck.Input
 {
     /// <summary>
-    /// Controller input source: polls a physical pad through the existing
-    /// <see cref="GameController"/> (SharpDX DirectInput) and raises the same logical
-    /// <see cref="DeckCommand"/>s the keyboard source does. Button indices follow the
-    /// XInput-style layout DirectInput reports for Xbox-class pads. Raising a command
-    /// switches the legend to pad glyphs; keyboard input switches it back.
+    /// Controller input source: polls XInput directly (xinput1_4.dll) and raises the
+    /// same logical <see cref="DeckCommand"/>s the keyboard source does. XInput covers
+    /// Xbox pads, 8BitDo-style pads in X mode, and anything routed through Steam Input
+    /// on desktop; DirectInput was abandoned because modern Xbox-protocol pads do not
+    /// reliably expose state through it. Raising a command switches the legend to pad
+    /// glyphs; keyboard input switches it back.
     /// </summary>
     public class ControllerInputSource : IDeckInputSource, IDisposable
     {
@@ -18,37 +18,72 @@ namespace AppUI.Deck.Input
 
         public event Action<DeckCommand> CommandRaised;
 
-        private const int DeadZone = 350; // axis range is -1000..1000
-
         private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(33);
         private static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(3);
         private static readonly TimeSpan RepeatDelay = TimeSpan.FromMilliseconds(350);
         private static readonly TimeSpan RepeatRate = TimeSpan.FromMilliseconds(120);
         private static readonly TimeSpan LongPressThreshold = TimeSpan.FromMilliseconds(600);
 
-        // XInput-style button indices as DirectInput reports them
-        private const int ButtonA = 0;
-        private const int ButtonB = 1;
-        private const int ButtonX = 2;
-        private const int ButtonY = 3;
-        private const int ButtonLB = 4;
-        private const int ButtonRB = 5;
-        private const int ButtonSelect = 6;
-        private const int ButtonStart = 7;
+        private const int StickDeadZone = 12000; // axis range is -32768..32767
+        private const byte TriggerThreshold = 64; // trigger range is 0..255
 
-        private readonly GameController _controller = new GameController();
+        #region XInput interop
+
+        private const uint ErrorSuccess = 0;
+        private const int MaxUserIndex = 4;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct XInputGamepad
+        {
+            public ushort Buttons;
+            public byte LeftTrigger;
+            public byte RightTrigger;
+            public short ThumbLX;
+            public short ThumbLY;
+            public short ThumbRX;
+            public short ThumbRY;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct XInputState
+        {
+            public uint PacketNumber;
+            public XInputGamepad Gamepad;
+        }
+
+        private static class Buttons
+        {
+            public const ushort DPadUp = 0x0001;
+            public const ushort DPadDown = 0x0002;
+            public const ushort DPadLeft = 0x0004;
+            public const ushort DPadRight = 0x0008;
+            public const ushort Start = 0x0010;
+            public const ushort Back = 0x0020;
+            public const ushort LeftShoulder = 0x0100;
+            public const ushort RightShoulder = 0x0200;
+            public const ushort A = 0x1000;
+            public const ushort B = 0x2000;
+            public const ushort X = 0x4000;
+            public const ushort Y = 0x8000;
+        }
+
+        [DllImport("xinput1_4.dll", EntryPoint = "XInputGetState")]
+        private static extern uint XInputGetState(uint userIndex, out XInputState state);
+
+        #endregion
+
         private readonly DispatcherTimer _timer;
 
+        private int _userIndex = -1;
         private DateTime _lastReconnectAttempt = DateTime.MinValue;
-        private bool _wasConnected;
 
-        private bool[] _previousButtons = new bool[0];
+        private ushort _previousButtons;
+        private bool _previousLeftTrigger;
+        private bool _previousRightTrigger;
         private DeckCommand? _heldDirection;
         private DateTime _nextRepeatAt;
         private DateTime? _startDownAt;
         private bool _longPressRaised;
-        private bool _previousPageUp;
-        private bool _previousPageDown;
 
         public ControllerInputSource()
         {
@@ -60,12 +95,13 @@ namespace AppUI.Deck.Input
         public void Dispose()
         {
             _timer.Stop();
-            _controller.ReleaseDevice();
         }
 
         private void Poll()
         {
-            if (!_controller.IsConnected)
+            XInputState state;
+
+            if (_userIndex < 0)
             {
                 if (DateTime.UtcNow - _lastReconnectAttempt < ReconnectInterval)
                 {
@@ -73,78 +109,74 @@ namespace AppUI.Deck.Input
                 }
 
                 _lastReconnectAttempt = DateTime.UtcNow;
-                _controller.CreateDevice();
 
-                if (!_controller.IsConnected)
+                for (uint i = 0; i < MaxUserIndex; i++)
                 {
-                    return;
+                    if (TryGetState(i, out state))
+                    {
+                        _userIndex = (int)i;
+                        _previousButtons = state.Gamepad.Buttons;
+                        Logger.Info($"Deck mode: controller connected (XInput slot {i})");
+                        return; // start reacting from the next poll
+                    }
                 }
 
-                Logger.Info("Deck mode: controller connected");
-                _wasConnected = true;
-                _previousButtons = new bool[0];
-            }
-
-            JoystickState state;
-
-            try
-            {
-                state = _controller.ReadState();
-            }
-            catch
-            {
-                state = null;
-            }
-
-            if (state == null)
-            {
-                if (_wasConnected)
-                {
-                    Logger.Info("Deck mode: controller disconnected");
-                    _wasConnected = false;
-                }
-
-                _controller.ReleaseDevice();
-                _heldDirection = null;
-                _startDownAt = null;
                 return;
             }
 
-            bool[] buttons = state.Buttons;
+            if (!TryGetState((uint)_userIndex, out state))
+            {
+                Logger.Info($"Deck mode: controller disconnected (XInput slot {_userIndex})");
+                _userIndex = -1;
+                _heldDirection = null;
+                _startDownAt = null;
+                _previousButtons = 0;
+                return;
+            }
 
-            RaiseOnPress(buttons, ButtonA, DeckCommand.Activate);
-            RaiseOnPress(buttons, ButtonB, DeckCommand.Back);
-            RaiseOnPress(buttons, ButtonX, DeckCommand.ReorderToggle);
-            RaiseOnPress(buttons, ButtonY, DeckCommand.OpenOptions);
-            RaiseOnPress(buttons, ButtonLB, DeckCommand.SectionPrev);
-            RaiseOnPress(buttons, ButtonRB, DeckCommand.SectionNext);
-            RaiseOnPress(buttons, ButtonSelect, DeckCommand.Search);
+            ushort buttons = state.Gamepad.Buttons;
+
+            RaiseOnPress(buttons, Buttons.A, DeckCommand.Activate);
+            RaiseOnPress(buttons, Buttons.B, DeckCommand.Back);
+            RaiseOnPress(buttons, Buttons.X, DeckCommand.ReorderToggle);
+            RaiseOnPress(buttons, Buttons.Y, DeckCommand.OpenOptions);
+            RaiseOnPress(buttons, Buttons.LeftShoulder, DeckCommand.SectionPrev);
+            RaiseOnPress(buttons, Buttons.RightShoulder, DeckCommand.SectionNext);
+            RaiseOnPress(buttons, Buttons.Back, DeckCommand.Search);
 
             HandleStartButton(buttons);
-            HandleDirections(state);
-            HandleTriggers(state);
+            HandleDirections(state.Gamepad, buttons);
+            HandleTriggers(state.Gamepad);
 
-            _previousButtons = (bool[])buttons.Clone();
+            _previousButtons = buttons;
         }
 
-        private void RaiseOnPress(bool[] buttons, int index, DeckCommand command)
+        private static bool TryGetState(uint userIndex, out XInputState state)
         {
-            if (IsDown(buttons, index) && !IsDown(_previousButtons, index))
+            try
+            {
+                return XInputGetState(userIndex, out state) == ErrorSuccess;
+            }
+            catch (DllNotFoundException)
+            {
+                state = default;
+                return false;
+            }
+        }
+
+        private void RaiseOnPress(ushort buttons, ushort mask, DeckCommand command)
+        {
+            if ((buttons & mask) != 0 && (_previousButtons & mask) == 0)
             {
                 Raise(command);
             }
         }
 
-        private static bool IsDown(bool[] buttons, int index)
-        {
-            return index < buttons.Length && buttons[index];
-        }
-
         /// <summary>Start/Menu: short press plays, holding past the threshold raises PlayLong.</summary>
-        private void HandleStartButton(bool[] buttons)
+        private void HandleStartButton(ushort buttons)
         {
-            bool isDown = IsDown(buttons, ButtonStart);
-            bool wasDown = IsDown(_previousButtons, ButtonStart);
+            bool isDown = (buttons & Buttons.Start) != 0;
+            bool wasDown = (_previousButtons & Buttons.Start) != 0;
 
             if (isDown && !wasDown)
             {
@@ -169,9 +201,9 @@ namespace AppUI.Deck.Input
         }
 
         /// <summary>D-pad and left stick move focus, with initial-delay-then-repeat while held.</summary>
-        private void HandleDirections(JoystickState state)
+        private void HandleDirections(XInputGamepad gamepad, ushort buttons)
         {
-            DeckCommand? direction = ResolveDirection(state);
+            DeckCommand? direction = ResolveDirection(gamepad, buttons);
 
             if (direction != _heldDirection)
             {
@@ -190,68 +222,49 @@ namespace AppUI.Deck.Input
             }
         }
 
-        private static DeckCommand? ResolveDirection(JoystickState state)
+        private static DeckCommand? ResolveDirection(XInputGamepad gamepad, ushort buttons)
         {
-            // d-pad first (diagonals resolve to the nearest cardinal, vertical wins)
-            int pov = -1;
+            // d-pad wins over the stick
+            if ((buttons & Buttons.DPadUp) != 0) return DeckCommand.NavigateUp;
+            if ((buttons & Buttons.DPadDown) != 0) return DeckCommand.NavigateDown;
+            if ((buttons & Buttons.DPadLeft) != 0) return DeckCommand.NavigateLeft;
+            if ((buttons & Buttons.DPadRight) != 0) return DeckCommand.NavigateRight;
 
-            foreach (int value in state.PointOfViewControllers)
-            {
-                if (value != -1)
-                {
-                    pov = value;
-                    break;
-                }
-            }
+            int x = gamepad.ThumbLX;
+            int y = gamepad.ThumbLY;
 
-            if (pov != -1)
-            {
-                if (pov >= 31500 || pov <= 4500) return DeckCommand.NavigateUp;
-                if (pov >= 13500 && pov <= 22500) return DeckCommand.NavigateDown;
-                if (pov > 4500 && pov < 13500) return DeckCommand.NavigateRight;
-                return DeckCommand.NavigateLeft;
-            }
-
-            // left stick: dominant axis wins
-            int x = state.X;
-            int y = state.Y;
-
-            if (Math.Abs(x) <= DeadZone && Math.Abs(y) <= DeadZone)
+            if (Math.Abs(x) <= StickDeadZone && Math.Abs(y) <= StickDeadZone)
             {
                 return null;
             }
 
+            // dominant axis wins (XInput Y is positive-up)
             if (Math.Abs(y) >= Math.Abs(x))
             {
-                return y < 0 ? DeckCommand.NavigateUp : DeckCommand.NavigateDown;
+                return y > 0 ? DeckCommand.NavigateUp : DeckCommand.NavigateDown;
             }
 
             return x < 0 ? DeckCommand.NavigateLeft : DeckCommand.NavigateRight;
         }
 
-        /// <summary>Triggers page through lists (XInput pads share the Z axis between them).</summary>
-        private void HandleTriggers(JoystickState state)
+        /// <summary>Triggers page through lists.</summary>
+        private void HandleTriggers(XInputGamepad gamepad)
         {
-            if (!_controller.IsXInputDevice)
-            {
-                return;
-            }
+            bool leftTrigger = gamepad.LeftTrigger > TriggerThreshold;
+            bool rightTrigger = gamepad.RightTrigger > TriggerThreshold;
 
-            bool pageUp = state.Z > DeadZone;    // left trigger
-            bool pageDown = state.Z < -DeadZone; // right trigger
-
-            if (pageUp && !_previousPageUp)
+            if (leftTrigger && !_previousLeftTrigger)
             {
                 Raise(DeckCommand.PageUp);
             }
 
-            if (pageDown && !_previousPageDown)
+            if (rightTrigger && !_previousRightTrigger)
             {
                 Raise(DeckCommand.PageDown);
             }
 
-            _previousPageUp = pageUp;
-            _previousPageDown = pageDown;
+            _previousLeftTrigger = leftTrigger;
+            _previousRightTrigger = rightTrigger;
         }
 
         private void Raise(DeckCommand command)
