@@ -116,6 +116,10 @@ namespace AppUI.Deck
             {
                 RebuildLegend();
             }
+            else if (e.PropertyName == nameof(Profiles.DeckProfilesViewModel.IsTextOverlayOpen))
+            {
+                NotifyPropertyChanged(nameof(IsTextEntryActive));
+            }
         }
 
         private void CatalogSection_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -133,7 +137,12 @@ namespace AppUI.Deck
         /// <summary>The window watches this to switch the keyboard source into text-entry mode.</summary>
         public bool IsTextEntryActive
         {
-            get { return CatalogSection.IsSearchOverlayOpen || SettingsSection.IsTextOverlayOpen; }
+            get
+            {
+                return CatalogSection.IsSearchOverlayOpen
+                    || SettingsSection.IsTextOverlayOpen
+                    || ProfilesSection.IsTextOverlayOpen;
+            }
         }
 
         /// <summary>

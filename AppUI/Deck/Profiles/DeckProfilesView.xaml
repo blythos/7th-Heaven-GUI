@@ -102,20 +102,126 @@
 
         <Border Grid.Column="1" Background="{DynamicResource PrimaryControlPressed}"/>
 
-        <!-- profile details -->
-        <ScrollViewer Grid.Column="2"
-                      VerticalScrollBarVisibility="Auto"
-                      Visibility="{Binding HasFocusedProfile, Converter={StaticResource BoolToVis}}">
-            <StackPanel Margin="24">
-                <TextBlock Text="{Binding FocusedProfile.Name}"
-                           FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"
-                           Foreground="{DynamicResource PrimaryControlForeground}"/>
+        <!-- right pane: details, action panel, name editor, or delete confirm -->
+        <Grid Grid.Column="2">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ScrollViewer.Style>
+                    <Style TargetType="ScrollViewer">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasFocusedProfile}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsActionPanelOpen}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsTextOverlayOpen}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsDeleteConfirmOpen}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ScrollViewer.Style>
+                <StackPanel Margin="24">
+                    <TextBlock Text="{Binding FocusedProfile.Name}"
+                               FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"
+                               Foreground="{DynamicResource PrimaryControlForeground}"/>
 
-                <TextBlock Text="{Binding FocusedProfile.DetailsText}"
-                           FontFamily="Consolas" FontSize="13"
-                           Margin="0,16,0,0" TextWrapping="Wrap"
+                    <TextBlock Text="{Binding FocusedProfile.DetailsText}"
+                               FontFamily="Consolas" FontSize="13"
+                               Margin="0,16,0,0" TextWrapping="Wrap"
+                               Foreground="{DynamicResource PrimaryControlSecondary}"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- profile actions -->
+            <StackPanel Margin="16,24"
+                        Visibility="{Binding IsActionPanelOpen, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="{Binding FocusedProfile.Name}"
+                           FontSize="18" FontWeight="SemiBold" Margin="8,0,8,10" TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryControlForeground}"/>
+                <ListBox x:Name="lstActions"
+                         ItemsSource="{Binding ActionLabels}"
+                         SelectedIndex="{Binding FocusedActionIndex, Mode=TwoWay}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Focusable="False"
+                         KeyboardNavigation.DirectionalNavigation="None"
+                         HorizontalContentAlignment="Stretch"
+                         MouseDoubleClick="lstActions_MouseDoubleClick">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Focusable" Value="False"/>
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="rowBorder"
+                                                BorderThickness="2"
+                                                BorderBrush="Transparent"
+                                                Background="{DynamicResource PrimaryControlBackground}"
+                                                Padding="14,10"
+                                                Margin="0,2">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="rowBorder" Property="Background" Value="{DynamicResource PrimaryControlMouseOver}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="rowBorder" Property="BorderBrush" Value="{DynamicResource DeckAccentBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" FontSize="15"
+                                       Foreground="{DynamicResource PrimaryControlForeground}"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+
+            <!-- profile name editor -->
+            <StackPanel Margin="24"
+                        Visibility="{Binding IsTextOverlayOpen, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="{Binding TextPrompt}"
+                           FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryControlForeground}"/>
+                <TextBox x:Name="txtProfileName"
+                         Text="{Binding TextDraft, UpdateSourceTrigger=PropertyChanged}"
+                         FontSize="15"
+                         Margin="0,12,0,0"
+                         Padding="8,6"
+                         Background="{DynamicResource PrimaryControlBackground}"
+                         Foreground="{DynamicResource PrimaryControlForeground}"
+                         BorderBrush="{DynamicResource DeckAccentBrush}"
+                         BorderThickness="2"
+                         CaretBrush="{DynamicResource PrimaryControlForeground}"/>
+                <TextBlock Text="Type with a physical keyboard. On Deck press Steam + X."
+                           FontSize="12" TextWrapping="Wrap"
+                           Margin="0,10,0,0"
                            Foreground="{DynamicResource PrimaryControlSecondary}"/>
             </StackPanel>
-        </ScrollViewer>
+
+            <!-- delete confirm -->
+            <StackPanel Margin="24" VerticalAlignment="Center"
+                        Visibility="{Binding IsDeleteConfirmOpen, Converter={StaticResource BoolToVis}}">
+                <TextBlock FontSize="17" TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryControlForeground}">
+                    <Run Text="Delete profile"/> <Run Text="{Binding FocusedProfile.Name, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="? This cannot be undone."/>
+                </TextBlock>
+                <TextBlock Text="Enter deletes · Esc cancels" Margin="0,12,0,0"
+                           FontSize="13"
+                           Foreground="{DynamicResource PrimaryControlSecondary}"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </UserControl>
