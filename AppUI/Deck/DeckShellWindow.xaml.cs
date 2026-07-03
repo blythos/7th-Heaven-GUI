@@ -47,10 +47,9 @@ namespace AppUI.Deck
             _mainViewModel.InitViewModel();
 
             // InitViewModel applied the saved desktop theme; Deck mode always uses its own.
-            // FF7 theme is the temporary default for review (switch back to DeckDark later);
-            // its accent is the game's teal-green label colour.
-            new ThemeSettingsViewModel(loadThemeXml: false).ApplyBuiltInTheme(AppTheme.DeckFF7);
-            ApplyFF7ThemeExtras();
+            // (To preview the FF7 theme: apply AppTheme.DeckFF7 and call ApplyFF7ThemeExtras
+            // instead — becomes a proper Settings choice when Deck theme switching lands.)
+            new ThemeSettingsViewModel(loadThemeXml: false).ApplyBuiltInTheme(AppTheme.DeckDark);
 
             ViewModel = new DeckShellViewModel(_mainViewModel);
             DataContext = ViewModel;
