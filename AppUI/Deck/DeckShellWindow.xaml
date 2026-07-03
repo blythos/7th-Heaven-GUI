@@ -29,6 +29,12 @@
     </Window.Resources>
 
     <Grid>
+        <!-- one knob for overall UI size: the Deck's 1280x800 7" panel needs larger
+             targets than a desktop monitor. Candidate for a Settings row later. -->
+        <Grid.LayoutTransform>
+            <ScaleTransform ScaleX="1.25" ScaleY="1.25"/>
+        </Grid.LayoutTransform>
+
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -38,9 +44,9 @@
                 <RowDefinition Height="56"/>
             </Grid.RowDefinitions>
 
-            <!-- top bar: sections left, current profile right -->
-            <DockPanel x:Name="topBar" Grid.Row="0" Margin="16,10">
-                <TextBlock DockPanel.Dock="Right"
+            <!-- top bar: sections centred, current profile pinned right -->
+            <Grid x:Name="topBar" Grid.Row="0" Margin="16,10">
+                <TextBlock HorizontalAlignment="Right"
                            VerticalAlignment="Center"
                            Margin="12,0"
                            FontSize="14"
@@ -48,7 +54,7 @@
                     <Run Text="Profile:"/> <Run Text="{Binding Main.CurrentProfile, Mode=OneWay}"/>
                 </TextBlock>
 
-                <ItemsControl ItemsSource="{Binding Sections}" Focusable="False">
+                <ItemsControl ItemsSource="{Binding Sections}" Focusable="False" HorizontalAlignment="Center">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal"/>
@@ -82,7 +88,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-            </DockPanel>
+            </Grid>
 
             <Border Grid.Row="1" Background="{DynamicResource PrimaryControlPressed}"/>
 
