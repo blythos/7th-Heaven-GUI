@@ -519,24 +519,24 @@ namespace AppUI.Deck.Catalog
 
             if (IsSearchOverlayOpen)
             {
-                items.Add(new DeckLegendItem("A", "Search"));
-                items.Add(new DeckLegendItem("B", "Cancel"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Search"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"));
             }
             else if (_focusedColumn == CatalogColumn.Mods)
             {
-                items.Add(new DeckLegendItem("↑↓", "Move"));
-                items.Add(new DeckLegendItem("A", "Install"));
-                items.Add(new DeckLegendItem("Y", "Search"));
-                items.Add(new DeckLegendItem("B", "Back"));
-                items.Add(new DeckLegendItem("LB RB", "Section"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Install"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Search, "Search"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Back"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Sections, "Section"));
             }
             else
             {
-                items.Add(new DeckLegendItem("↑↓", "Move"));
-                items.Add(new DeckLegendItem("A", "Open category"));
-                items.Add(new DeckLegendItem("Y", "Search"));
-                items.Add(new DeckLegendItem("B", "Back"));
-                items.Add(new DeckLegendItem("LB RB", "Section"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Open category"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Search, "Search"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Back"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Sections, "Section"));
             }
 
             LegendItems = items;

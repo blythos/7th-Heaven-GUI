@@ -690,31 +690,31 @@ namespace AppUI.Deck
             {
                 if (LaunchFailed)
                 {
-                    items.Add(new DeckLegendItem("B", "Dismiss"));
+                    items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Dismiss"));
                 }
             }
             else if (IsReorderMode)
             {
-                items.Add(new DeckLegendItem("↑↓", "Move mod"));
-                items.Add(new DeckLegendItem("A", "Drop"));
-                items.Add(new DeckLegendItem("B", "Cancel"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move mod"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Drop"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"));
             }
             else if (CurrentFocusArea == FocusArea.ModList)
             {
-                items.Add(new DeckLegendItem("↑↓", "Move"));
-                items.Add(new DeckLegendItem("A", "Toggle mod"));
-                items.Add(new DeckLegendItem("X", "Reorder"));
-                items.Add(new DeckLegendItem("Y", "Options"));
-                items.Add(new DeckLegendItem("B", "Back"));
-                items.Add(new DeckLegendItem("LB RB", "Section"));
-                items.Add(new DeckLegendItem("☰", "Play"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Toggle mod"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Reorder, "Reorder"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Options, "Options"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Back"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Sections, "Section"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Play, "Play"));
             }
             else
             {
-                items.Add(new DeckLegendItem("↑↓", "Move"));
-                items.Add(new DeckLegendItem("A", CurrentSection == DeckSection.Play ? "Play" : "Select"));
-                items.Add(new DeckLegendItem("LB RB", "Section"));
-                items.Add(new DeckLegendItem("☰", "Play"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, CurrentSection == DeckSection.Play ? "Play" : "Select"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Sections, "Section"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Play, "Play"));
             }
 
             LegendItems = items;

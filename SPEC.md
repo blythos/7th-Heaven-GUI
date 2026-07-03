@@ -483,3 +483,26 @@ Deck early. If it's a problem, run the overlay after every MateriaForge update.
 9. Deck deployment script under `/deck-deploy/`, the Steam Input keystroke layout, and the
    MateriaForge integrity-check spike.
 10. First real Steam Deck verification pass across everything above.
+
+## Revisions from Windows testing (2026-07-03)
+
+Feedback from the first hands-on Windows session. These supersede the corresponding
+sections above and are the next implementation priorities:
+
+1. **The legend must reflect the active input device.** When driving with a keyboard the
+   legend shows the actual keys (Enter, Esc, R, O, Q/E…), not Xbox glyphs. Implemented as
+   a glyph-set layer (`DeckGlyphs`): the keyboard set is the default until a controller
+   source exists; the manual Xbox/PS/Nintendo override in Settings remains the plan for
+   pad brands.
+2. **The details/description pane gets more room.** It carries the most important content
+   (mod description, and later screenshots) and should be substantially wider than the
+   current fixed 380px column.
+3. **Top bar replaces the left sidebar.** Sections move to a horizontal bar along the top
+   of the screen, cycled with LB/RB. The freed left column goes to content.
+4. **Drop the "Play" and "Load order" sections.** Play is the Menu/Start button (and a
+   persistent legend affordance), not a place you navigate to; load order is handled
+   entirely by reorder mode inside My mods. Remaining sections: My mods, Browse catalog,
+   Settings.
+5. **Add a quit affordance.** Deck mode has no window chrome, so it needs an explicit way
+   to exit the app — e.g. an entry in Settings and/or a hold-to-quit on the Back button at
+   the top level. (Ctrl+Q exists as a dev shortcut on Windows.)

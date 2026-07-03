@@ -431,16 +431,16 @@ namespace AppUI.Deck.Options
 
             if (IsValuePanelOpen)
             {
-                items.Add(new DeckLegendItem("↑↓", "Move"));
-                items.Add(new DeckLegendItem("A", "Select"));
-                items.Add(new DeckLegendItem("B", "Cancel"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Select"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"));
             }
             else
             {
-                items.Add(new DeckLegendItem("↑↓", "Move"));
-                items.Add(new DeckLegendItem("A", "Change"));
-                items.Add(new DeckLegendItem("◄►", "Cycle value"));
-                items.Add(new DeckLegendItem("B", _levelStack.Any() ? "Back" : "Done"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Change"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.LeftRight, "Cycle value"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Back, _levelStack.Any() ? "Back" : "Done"));
             }
 
             LegendItems = items;
