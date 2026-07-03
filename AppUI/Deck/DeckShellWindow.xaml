@@ -44,15 +44,39 @@
                 <RowDefinition Height="56"/>
             </Grid.RowDefinitions>
 
-            <!-- top bar: sections centred, current profile pinned right -->
+            <!-- top bar: sections centred, play button and current profile pinned right -->
             <Grid x:Name="topBar" Grid.Row="0" Margin="16,10">
-                <TextBlock HorizontalAlignment="Right"
-                           VerticalAlignment="Center"
-                           Margin="12,0"
-                           FontSize="14"
-                           Foreground="{DynamicResource PrimaryControlSecondary}">
-                    <Run Text="Profile:"/> <Run Text="{Binding Main.CurrentProfile, Mode=OneWay}"/>
-                </TextBlock>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock VerticalAlignment="Center"
+                               Margin="0,0,14,0"
+                               FontSize="14"
+                               Foreground="{DynamicResource PrimaryControlSecondary}">
+                        <Run Text="Profile:"/> <Run Text="{Binding Main.CurrentProfile, Mode=OneWay}"/>
+                    </TextBlock>
+
+                    <!-- play: same logical command as pressing P / Menu -->
+                    <Border x:Name="btnPlay"
+                            Background="{DynamicResource DeckAccentBrush}"
+                            CornerRadius="4"
+                            Padding="20,8"
+                            Cursor="Hand"
+                            MouseLeftButtonUp="PlayButton_MouseLeftButtonUp">
+                        <TextBlock Text="▶ Play" FontSize="15" FontWeight="SemiBold" Foreground="#1A1A18"/>
+                    </Border>
+
+                    <!-- opens the default play command picker (hold play on pad/keyboard) -->
+                    <Border x:Name="btnPlayVariant"
+                            Background="{DynamicResource PrimaryControlPressed}"
+                            CornerRadius="4"
+                            Padding="10,8"
+                            Margin="4,0,0,0"
+                            Cursor="Hand"
+                            ToolTip="Change the default play command"
+                            MouseLeftButtonUp="PlayVariantButton_MouseLeftButtonUp">
+                        <TextBlock Text="▾" FontSize="15" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource PrimaryControlForeground}"/>
+                    </Border>
+                </StackPanel>
 
                 <ItemsControl ItemsSource="{Binding Sections}" Focusable="False" HorizontalAlignment="Center">
                     <ItemsControl.ItemsPanel>

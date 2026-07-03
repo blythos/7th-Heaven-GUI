@@ -137,6 +137,18 @@ namespace AppUI.Deck
             ViewModel?.HandleCommand(DeckCommand.Activate);
         }
 
+        private void PlayButton_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            ViewModel?.HandleCommand(DeckCommand.PlayShort);
+            e.Handled = true;
+        }
+
+        private void PlayVariantButton_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            ViewModel?.HandleCommand(DeckCommand.PlayLong);
+            e.Handled = true;
+        }
+
         #endregion
     }
 }
