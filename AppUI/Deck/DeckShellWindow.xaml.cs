@@ -1,3 +1,7 @@
+using AppUI.Classes.Themes;
+using AppUI.Deck.Input;
+using AppUI.ViewModels;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 
@@ -5,10 +9,18 @@ namespace AppUI.Deck
 {
     /// <summary>
     /// Fullscreen shell window for Deck mode (launched with <c>--deck</c>).
+    /// Hosts the sidebar, My Mods list, passive details pane, and button legend;
+    /// all navigation flows through the logical command layer.
     /// </summary>
     public partial class DeckShellWindow : Window
     {
         private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+
+        internal DeckShellViewModel ViewModel { get; private set; }
+
+        private MainWindowViewModel _mainViewModel;
+        private DeckCommandRouter _router;
+        private KeyboardInputSource _keyboardSource;
 
         public DeckShellWindow()
         {
@@ -17,17 +29,50 @@ namespace AppUI.Deck
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            Logger.Info("Deck mode");
+            Logger.Info("Deck mode: initializing");
+
+            // same init sequence the desktop MainWindow runs
+            _mainViewModel = new MainWindowViewModel();
+            _mainViewModel.InitViewModel();
+
+            // InitViewModel applied the saved desktop theme; Deck mode always uses its own
+            new ThemeSettingsViewModel(loadThemeXml: false).ApplyBuiltInTheme(AppTheme.DeckDark);
+
+            ViewModel = new DeckShellViewModel(_mainViewModel);
+            DataContext = ViewModel;
+            ViewModel.OnDataReady();
+
+            _router = new DeckCommandRouter();
+            _router.PushHandler(ViewModel);
+
+            _keyboardSource = new KeyboardInputSource(this);
+            _router.AddSource(_keyboardSource);
+
+            Logger.Info("Deck mode: shell ready");
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
 
-            // Temporary exit until the input command layer owns Back handling
-            if (e.Key == Key.Escape)
+            // dev-only exit; controller users close via the launcher/Steam
+            if (e.Key == Key.Q && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 Close();
+            }
+        }
+
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            base.OnClosing(e);
+            _keyboardSource?.Detach();
+        }
+
+        private void lstMods_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (lstMods.SelectedItem != null)
+            {
+                lstMods.ScrollIntoView(lstMods.SelectedItem);
             }
         }
     }
