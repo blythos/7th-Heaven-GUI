@@ -54,6 +54,15 @@ namespace AppUI.Deck
             _keyboardSource = new KeyboardInputSource(this);
             _router.AddSource(_keyboardSource);
 
+            // free-text fields (catalog search) need raw keys to reach the TextBox
+            ViewModel.PropertyChanged += (s, args) =>
+            {
+                if (args.PropertyName == nameof(DeckShellViewModel.IsTextEntryActive))
+                {
+                    _keyboardSource.TextEntryMode = ViewModel.IsTextEntryActive;
+                }
+            };
+
             Logger.Info("Deck mode: shell ready");
         }
 

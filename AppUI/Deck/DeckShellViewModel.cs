@@ -47,6 +47,8 @@ namespace AppUI.Deck
 
         public MainWindowViewModel Main { get; }
 
+        public Catalog.DeckCatalogViewModel CatalogSection { get; }
+
         public ObservableCollection<DeckSectionItemViewModel> Sections { get; }
 
         public DeckShellViewModel(MainWindowViewModel main)
@@ -64,8 +66,29 @@ namespace AppUI.Deck
 
             Main.MyMods.PropertyChanged += MyMods_PropertyChanged;
 
+            CatalogSection = new Catalog.DeckCatalogViewModel(main.CatalogMods);
+            CatalogSection.PropertyChanged += CatalogSection_PropertyChanged;
+
             UpdateSectionFlags();
             RebuildLegend();
+        }
+
+        private void CatalogSection_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(Catalog.DeckCatalogViewModel.LegendItems))
+            {
+                RebuildLegend();
+            }
+            else if (e.PropertyName == nameof(Catalog.DeckCatalogViewModel.IsSearchOverlayOpen))
+            {
+                NotifyPropertyChanged(nameof(IsTextEntryActive));
+            }
+        }
+
+        /// <summary>The window watches this to switch the keyboard source into text-entry mode.</summary>
+        public bool IsTextEntryActive
+        {
+            get { return CatalogSection.IsSearchOverlayOpen; }
         }
 
         /// <summary>
@@ -93,7 +116,17 @@ namespace AppUI.Deck
                 NotifyPropertyChanged();
                 NotifyPropertyChanged(nameof(IsModListFocused));
                 UpdateSectionFlags();
+                UpdateCatalogFocus();
                 RebuildLegend();
+            }
+        }
+
+        private void UpdateCatalogFocus()
+        {
+            if (CatalogSection != null)
+            {
+                CatalogSection.IsContentFocused =
+                    (_focusArea == FocusArea.ModList && CurrentSection == DeckSection.BrowseCatalog);
             }
         }
 
@@ -139,9 +172,14 @@ namespace AppUI.Deck
             get { return CurrentSection == DeckSection.Play; }
         }
 
+        public bool IsCatalogVisible
+        {
+            get { return CurrentSection == DeckSection.BrowseCatalog; }
+        }
+
         public bool IsPlaceholderVisible
         {
-            get { return !IsModListVisible && !IsPlaySectionVisible; }
+            get { return !IsModListVisible && !IsPlaySectionVisible && !IsCatalogVisible; }
         }
 
         public string PlaceholderText
@@ -150,7 +188,6 @@ namespace AppUI.Deck
             {
                 switch (CurrentSection)
                 {
-                    case DeckSection.BrowseCatalog: return "Browse catalog is coming in a later milestone.";
                     case DeckSection.LoadOrder: return "Load order is coming in a later milestone.";
                     case DeckSection.Settings: return "Settings is coming in a later milestone.";
                     default: return "";
@@ -253,6 +290,15 @@ namespace AppUI.Deck
             if (IsReorderMode)
             {
                 return HandleReorderModeCommand(command);
+            }
+
+            // catalog content handles its own two-column navigation; commands it
+            // declines (sections, play, back at its root) fall through to the shell
+            if (CurrentSection == DeckSection.BrowseCatalog
+                && (CurrentFocusArea == FocusArea.ModList || CatalogSection.IsSearchOverlayOpen)
+                && CatalogSection.HandleCommand(command))
+            {
+                return true;
             }
 
             switch (command)
@@ -381,7 +427,7 @@ namespace AppUI.Deck
                 {
                     StartLaunch();
                 }
-                else if (CurrentSection == DeckSection.MyMods)
+                else
                 {
                     TryFocusModList();
                 }
@@ -395,17 +441,19 @@ namespace AppUI.Deck
 
         private void TryFocusModList()
         {
-            if (CurrentSection != DeckSection.MyMods || !Main.MyMods.ModList.Any())
+            if (CurrentSection == DeckSection.MyMods && Main.MyMods.ModList.Any())
             {
-                return;
-            }
+                if (FocusedModIndex < 0)
+                {
+                    FocusedModIndex = 0;
+                }
 
-            if (FocusedModIndex < 0)
+                CurrentFocusArea = FocusArea.ModList;
+            }
+            else if (CurrentSection == DeckSection.BrowseCatalog && CatalogSection.OnFocusEntered())
             {
-                FocusedModIndex = 0;
+                CurrentFocusArea = FocusArea.ModList;
             }
-
-            CurrentFocusArea = FocusArea.ModList;
         }
 
         private void ToggleFocusedMod()
@@ -586,8 +634,10 @@ namespace AppUI.Deck
             NotifyPropertyChanged(nameof(CurrentSection));
             NotifyPropertyChanged(nameof(IsModListVisible));
             NotifyPropertyChanged(nameof(IsPlaySectionVisible));
+            NotifyPropertyChanged(nameof(IsCatalogVisible));
             NotifyPropertyChanged(nameof(IsPlaceholderVisible));
             NotifyPropertyChanged(nameof(PlaceholderText));
+            UpdateCatalogFocus();
             RebuildLegend();
         }
 
@@ -626,6 +676,13 @@ namespace AppUI.Deck
             if (ActiveOptionsScreen != null)
             {
                 LegendItems = ActiveOptionsScreen.LegendItems;
+                return;
+            }
+
+            if (!IsLaunching && CurrentSection == DeckSection.BrowseCatalog
+                && (CurrentFocusArea == FocusArea.ModList || CatalogSection.IsSearchOverlayOpen))
+            {
+                LegendItems = CatalogSection.LegendItems;
                 return;
             }
 

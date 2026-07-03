@@ -52,6 +52,12 @@ namespace AppUI.Deck.Input
 
         public event Action<DeckCommand> CommandRaised;
 
+        /// <summary>
+        /// While a free-text field is active only Esc (Back) and Enter (Activate) are
+        /// intercepted; every other key flows through to the focused control.
+        /// </summary>
+        public bool TextEntryMode { get; set; }
+
         private readonly Window _window;
         private DateTime? _playKeyDownAt;
         private DispatcherTimer _longPressTimer;
@@ -73,6 +79,22 @@ namespace AppUI.Deck.Input
 
         private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            if (TextEntryMode)
+            {
+                if (e.Key == Key.Escape)
+                {
+                    CommandRaised?.Invoke(DeckCommand.Back);
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.Enter)
+                {
+                    CommandRaised?.Invoke(DeckCommand.Activate);
+                    e.Handled = true;
+                }
+
+                return;
+            }
+
             if (e.Key == PlayKey)
             {
                 if (!e.IsRepeat)
@@ -95,7 +117,7 @@ namespace AppUI.Deck.Input
 
         private void Window_PreviewKeyUp(object sender, KeyEventArgs e)
         {
-            if (e.Key != PlayKey)
+            if (TextEntryMode || e.Key != PlayKey)
             {
                 return;
             }
