@@ -52,6 +52,8 @@ namespace AppUI.Deck
 
         public Profiles.DeckProfilesViewModel ProfilesSection { get; }
 
+        public Settings.DeckSettingsViewModel SettingsSection { get; }
+
         public ObservableCollection<DeckSectionItemViewModel> Sections { get; }
 
         public DeckShellViewModel(MainWindowViewModel main)
@@ -74,8 +76,23 @@ namespace AppUI.Deck
             ProfilesSection = new Profiles.DeckProfilesViewModel(main);
             ProfilesSection.PropertyChanged += ProfilesSection_PropertyChanged;
 
+            SettingsSection = new Settings.DeckSettingsViewModel(onQuitRequested: () => IsQuitPromptOpen = true);
+            SettingsSection.PropertyChanged += SettingsSection_PropertyChanged;
+
             UpdateSectionFlags();
             RebuildLegend();
+        }
+
+        private void SettingsSection_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(Settings.DeckSettingsViewModel.LegendItems))
+            {
+                RebuildLegend();
+            }
+            else if (e.PropertyName == nameof(Settings.DeckSettingsViewModel.IsTextOverlayOpen))
+            {
+                NotifyPropertyChanged(nameof(IsTextEntryActive));
+            }
         }
 
         private void ProfilesSection_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -101,7 +118,7 @@ namespace AppUI.Deck
         /// <summary>The window watches this to switch the keyboard source into text-entry mode.</summary>
         public bool IsTextEntryActive
         {
-            get { return CatalogSection.IsSearchOverlayOpen; }
+            get { return CatalogSection.IsSearchOverlayOpen || SettingsSection.IsTextOverlayOpen; }
         }
 
         /// <summary>
@@ -146,6 +163,12 @@ namespace AppUI.Deck
             {
                 ProfilesSection.IsContentFocused =
                     (_focusArea == FocusArea.Content && CurrentSection == DeckSection.Profiles);
+            }
+
+            if (SettingsSection != null)
+            {
+                SettingsSection.IsContentFocused =
+                    (_focusArea == FocusArea.Content && CurrentSection == DeckSection.Settings);
             }
         }
 
@@ -207,14 +230,9 @@ namespace AppUI.Deck
             get { return CurrentSection == DeckSection.Profiles; }
         }
 
-        public bool IsPlaceholderVisible
+        public bool IsSettingsVisible
         {
             get { return CurrentSection == DeckSection.Settings; }
-        }
-
-        public string PlaceholderText
-        {
-            get { return CurrentSection == DeckSection.Settings ? "Settings is coming in a later milestone." : ""; }
         }
 
         public List<DeckLegendItem> LegendItems
@@ -331,7 +349,7 @@ namespace AppUI.Deck
 
             // section content handles its own navigation first; commands it declines
             // (sections, play, back/up at its root) fall through to the shell
-            if (CurrentFocusArea == FocusArea.Content || CatalogSection.IsSearchOverlayOpen)
+            if (CurrentFocusArea == FocusArea.Content || CatalogSection.IsSearchOverlayOpen || SettingsSection.IsTextOverlayOpen)
             {
                 if (CurrentSection == DeckSection.BrowseCatalog && CatalogSection.HandleCommand(command))
                 {
@@ -339,6 +357,11 @@ namespace AppUI.Deck
                 }
 
                 if (CurrentSection == DeckSection.Profiles && ProfilesSection.HandleCommand(command))
+                {
+                    return true;
+                }
+
+                if (CurrentSection == DeckSection.Settings && SettingsSection.HandleCommand(command))
                 {
                     return true;
                 }
@@ -507,6 +530,10 @@ namespace AppUI.Deck
                 CurrentFocusArea = FocusArea.Content;
             }
             else if (CurrentSection == DeckSection.Profiles && ProfilesSection.OnFocusEntered())
+            {
+                CurrentFocusArea = FocusArea.Content;
+            }
+            else if (CurrentSection == DeckSection.Settings && SettingsSection.OnFocusEntered())
             {
                 CurrentFocusArea = FocusArea.Content;
             }
@@ -691,8 +718,7 @@ namespace AppUI.Deck
             NotifyPropertyChanged(nameof(IsModListVisible));
             NotifyPropertyChanged(nameof(IsCatalogVisible));
             NotifyPropertyChanged(nameof(IsProfilesVisible));
-            NotifyPropertyChanged(nameof(IsPlaceholderVisible));
-            NotifyPropertyChanged(nameof(PlaceholderText));
+            NotifyPropertyChanged(nameof(IsSettingsVisible));
             UpdateContentFocusFlags();
             RebuildLegend();
         }
@@ -756,6 +782,13 @@ namespace AppUI.Deck
                 && CurrentFocusArea == FocusArea.Content)
             {
                 LegendItems = ProfilesSection.LegendItems;
+                return;
+            }
+
+            if (!IsLaunching && CurrentSection == DeckSection.Settings
+                && (CurrentFocusArea == FocusArea.Content || SettingsSection.IsTextOverlayOpen))
+            {
+                LegendItems = SettingsSection.LegendItems;
                 return;
             }
 

@@ -4,6 +4,7 @@
         xmlns:options="clr-namespace:AppUI.Deck.Options"
         xmlns:catalog="clr-namespace:AppUI.Deck.Catalog"
         xmlns:profiles="clr-namespace:AppUI.Deck.Profiles"
+        xmlns:settings="clr-namespace:AppUI.Deck.Settings"
         Title="7th Heaven"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -186,13 +187,6 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <!-- placeholder for later-milestone sections -->
-                <TextBlock Grid.Column="0" Grid.ColumnSpan="3"
-                           Text="{Binding PlaceholderText}"
-                           Style="{StaticResource DeckSecondaryText}"
-                           VerticalAlignment="Center" HorizontalAlignment="Center"
-                           Visibility="{Binding IsPlaceholderVisible, Converter={StaticResource BoolToVis}}"/>
-
                 <Border Grid.Column="1" Background="{DynamicResource PrimaryControlPressed}"
                         Visibility="{Binding IsModListVisible, Converter={StaticResource BoolToVis}}"/>
 
@@ -248,6 +242,11 @@
                 <profiles:DeckProfilesView Grid.Column="0" Grid.ColumnSpan="3"
                                            DataContext="{Binding ProfilesSection}"
                                            Visibility="{Binding DataContext.IsProfilesVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
+
+                <!-- settings section -->
+                <settings:DeckSettingsView Grid.Column="0" Grid.ColumnSpan="3"
+                                           DataContext="{Binding SettingsSection}"
+                                           Visibility="{Binding DataContext.IsSettingsVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
             </Grid>
 
             <!-- mod options takeover: covers the top bar and content, keeps the legend visible -->
