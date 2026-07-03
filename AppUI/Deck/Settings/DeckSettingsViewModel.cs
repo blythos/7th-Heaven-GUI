@@ -1,5 +1,6 @@
 using AppUI.Deck.Input;
 using AppUI.ViewModels;
+using Iros.Workshop;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -21,6 +22,7 @@ namespace AppUI.Deck.Settings
         private const int PageJumpSize = 10;
 
         private readonly Action _onQuitRequested;
+        private readonly Action _onCatalogChanged;
 
         private readonly Stack<(List<DeckSettingRowViewModel> rows, int focusIndex, string title)> _levelStack
             = new Stack<(List<DeckSettingRowViewModel>, int, string)>();
@@ -36,12 +38,24 @@ namespace AppUI.Deck.Settings
 
         private bool _isTextOverlayOpen;
         private string _textDraft = "";
+        private string _textOverlayStatus = "";
+
+        // catalog subscriptions level (non-null while it is the current level)
+        private GeneralSettingsViewModel _subsVm;
+        private bool _isAddingSubscription;
+        private bool _isRowLifted;
+        private SubscriptionSettingViewModel _liftedSub;
+        private int _liftOriginalIndex;
+        private bool _isConfirmOpen;
+        private string _confirmText = "";
+        private SubscriptionSettingViewModel _pendingRemoveSub;
 
         private List<DeckLegendItem> _legendItems = new List<DeckLegendItem>();
 
-        public DeckSettingsViewModel(Action onQuitRequested)
+        public DeckSettingsViewModel(Action onQuitRequested, Action onCatalogChanged)
         {
             _onQuitRequested = onQuitRequested;
+            _onCatalogChanged = onCatalogChanged;
 
             _rows = BuildRootRows();
             RebuildLegend();
@@ -152,7 +166,57 @@ namespace AppUI.Deck.Settings
             {
                 _textDraft = value;
                 NotifyPropertyChanged();
+                TextOverlayStatus = ""; // typing clears the last validation message
             }
+        }
+
+        /// <summary>Inline validation feedback under the text editor (e.g. a bad catalog URL).</summary>
+        public string TextOverlayStatus
+        {
+            get { return _textOverlayStatus; }
+            private set
+            {
+                _textOverlayStatus = value;
+                NotifyPropertyChanged();
+            }
+        }
+
+        /// <summary>True while a subscription row is "lifted" and up/down reorder it.</summary>
+        public bool IsRowLifted
+        {
+            get { return _isRowLifted; }
+            private set
+            {
+                _isRowLifted = value;
+                NotifyPropertyChanged();
+                RebuildLegend();
+            }
+        }
+
+        public bool IsConfirmOpen
+        {
+            get { return _isConfirmOpen; }
+            private set
+            {
+                _isConfirmOpen = value;
+                NotifyPropertyChanged();
+                RebuildLegend();
+            }
+        }
+
+        public string ConfirmText
+        {
+            get { return _confirmText; }
+            private set
+            {
+                _confirmText = value;
+                NotifyPropertyChanged();
+            }
+        }
+
+        public string ConfirmHint
+        {
+            get { return DeckGlyphs.ConfirmHint("confirms"); }
         }
 
         public List<DeckLegendItem> LegendItems
@@ -184,15 +248,44 @@ namespace AppUI.Deck.Settings
             {
                 if (command == DeckCommand.Back)
                 {
-                    IsTextOverlayOpen = false;
+                    CloseTextOverlay();
                 }
                 else if (command == DeckCommand.Activate)
                 {
-                    FocusedRow?.SetValue(TextDraft ?? "");
-                    FocusedRow?.Refresh();
-                    IsTextOverlayOpen = false;
+                    if (_isAddingSubscription)
+                    {
+                        TryAddSubscription(); // stays open with inline feedback when invalid
+                    }
+                    else
+                    {
+                        FocusedRow?.SetValue(TextDraft ?? "");
+                        FocusedRow?.Refresh();
+                        CloseTextOverlay();
+                    }
                 }
 
+                return true;
+            }
+
+            if (IsConfirmOpen)
+            {
+                if (command == DeckCommand.Activate)
+                {
+                    IsConfirmOpen = false;
+                    RemoveConfirmedSubscription();
+                }
+                else if (command == DeckCommand.Back)
+                {
+                    IsConfirmOpen = false;
+                    _pendingRemoveSub = null;
+                }
+
+                return true;
+            }
+
+            if (IsRowLifted)
+            {
+                HandleLiftedRowCommand(command);
                 return true;
             }
 
@@ -247,6 +340,24 @@ namespace AppUI.Deck.Settings
                     }
 
                     return false; // at the root menu: shell takes over
+
+                case DeckCommand.ReorderToggle:
+                    if (IsSubscriptionsLevel)
+                    {
+                        LiftFocusedSubscription();
+                        return true;
+                    }
+
+                    return false;
+
+                case DeckCommand.OpenOptions:
+                    if (IsSubscriptionsLevel)
+                    {
+                        BeginRemoveFocusedSubscription();
+                        return true;
+                    }
+
+                    return false;
 
                 default:
                     return false;
@@ -310,6 +421,11 @@ namespace AppUI.Deck.Settings
 
         private void PopLevel()
         {
+            if (IsSubscriptionsLevel)
+            {
+                CloseSubscriptionsLevel();
+            }
+
             var (rows, focusIndex, title) = _levelStack.Pop();
 
             Rows = rows;
@@ -325,9 +441,15 @@ namespace AppUI.Deck.Settings
         /// <summary>Mouse entry point: focuses the clicked row and performs its primary action.</summary>
         public void ActivateRowViaMouse(DeckSettingRowViewModel row)
         {
+            if (IsRowLifted)
+            {
+                DropLiftedRow(); // a click while lifted just drops the row where it is
+                return;
+            }
+
             int index = _rows.IndexOf(row);
 
-            if (index < 0 || row.IsHeader || IsTextOverlayOpen || IsValuePanelOpen)
+            if (index < 0 || row.IsHeader || IsTextOverlayOpen || IsValuePanelOpen || IsConfirmOpen)
             {
                 return;
             }
@@ -486,6 +608,7 @@ namespace AppUI.Deck.Settings
             {
                 DeckSettingRowViewModel.Action("Game driver", "Graphics, controls, cheats and advanced FFNx settings", OpenGameDriver),
                 DeckSettingRowViewModel.Action("General", "App behaviour, update channels and library options", OpenGeneral),
+                DeckSettingRowViewModel.Action("Catalog subscriptions", "Add, remove and prioritise the mod catalogs behind Browse catalog", OpenSubscriptions),
                 DeckSettingRowViewModel.Action("Quit 7th Heaven", "Exit the app", () => _onQuitRequested?.Invoke()),
             };
         }
@@ -509,10 +632,326 @@ namespace AppUI.Deck.Settings
             PushLevel("General", DeckGeneralSettingsAdapter.BuildRows());
         }
 
+        #region Catalog subscriptions
+
+        private bool IsSubscriptionsLevel
+        {
+            get { return _subsVm != null; }
+        }
+
+        /// <summary>
+        /// List screen over <see cref="GeneralSettingsViewModel"/>'s subscription
+        /// management: rows are catalogs in priority order, lift-to-reorder like the
+        /// Installed-mods list, remove behind an inline confirm, add by iros:// URL
+        /// through the keyboard-fallback overlay (the name resolves from the catalog
+        /// download, as on the desktop). Every change persists immediately.
+        /// </summary>
+        private void OpenSubscriptions()
+        {
+            var vm = new GeneralSettingsViewModel();
+            vm.LoadSettings(Sys.Settings);
+
+            // fires after an add resolves (on the dispatcher) and after a remove;
+            // closure-bound so a resolution finishing after the level closed still persists
+            vm.ListDataChanged += () =>
+            {
+                PersistSubscriptions(vm);
+
+                if (_subsVm == vm)
+                {
+                    RefreshSubscriptionRows();
+                }
+            };
+
+            // shows/hides the "Resolving catalog name…" placeholder row
+            vm.PropertyChanged += (s, args) =>
+            {
+                if (args.PropertyName == nameof(GeneralSettingsViewModel.IsResolvingName) && _subsVm == vm)
+                {
+                    RefreshSubscriptionRows();
+                }
+            };
+
+            _subsVm = vm;
+
+            Logger.Info("Deck mode: opened catalog subscriptions");
+            PushLevel("Catalog subscriptions", BuildSubscriptionRows());
+        }
+
+        private void CloseSubscriptionsLevel()
+        {
+            _isRowLifted = false;
+            _liftedSub = null;
+            _pendingRemoveSub = null;
+            _isConfirmOpen = false;
+            _isAddingSubscription = false;
+            _subsVm = null; // a pending name resolution keeps running; its closure still persists
+        }
+
+        private List<DeckSettingRowViewModel> BuildSubscriptionRows()
+        {
+            var rows = new List<DeckSettingRowViewModel>();
+
+            foreach (SubscriptionSettingViewModel sub in _subsVm.SubscriptionList)
+            {
+                SubscriptionSettingViewModel captured = sub;
+
+                var row = DeckSettingRowViewModel.Action(
+                    string.IsNullOrWhiteSpace(sub.Name) ? "(unnamed catalog)" : sub.Name,
+                    sub.Url,
+                    () => ToggleLiftSubscription(captured));
+                row.Tag = captured;
+
+                rows.Add(row);
+            }
+
+            if (_subsVm.IsResolvingName)
+            {
+                rows.Add(DeckSettingRowViewModel.Header("Resolving catalog name…"));
+            }
+
+            rows.Add(DeckSettingRowViewModel.Action("Add catalog", "Subscribe to a mod catalog by its iros:// URL", OpenAddSubscription));
+
+            return rows;
+        }
+
+        /// <summary>Rebuilds the subscription rows in place, keeping focus sensible.</summary>
+        private void RefreshSubscriptionRows()
+        {
+            if (!IsSubscriptionsLevel)
+            {
+                return;
+            }
+
+            int focus = FocusedRowIndex;
+            Rows = BuildSubscriptionRows();
+
+            int target = Math.Max(0, Math.Min(focus, _rows.Count - 1));
+
+            if (_rows[target].IsHeader)
+            {
+                int below = FindFocusable(target, 1);
+                target = below >= 0 ? below : FindFocusable(target, -1);
+            }
+
+            FocusedRowIndex = target;
+        }
+
+        private void FocusSubscription(SubscriptionSettingViewModel sub)
+        {
+            int index = _rows.FindIndex(r => ReferenceEquals(r.Tag, sub));
+
+            if (index >= 0)
+            {
+                FocusedRowIndex = index;
+            }
+        }
+
+        #region Reorder (lift)
+
+        private void ToggleLiftSubscription(SubscriptionSettingViewModel sub)
+        {
+            if (IsRowLifted)
+            {
+                DropLiftedRow();
+            }
+            else
+            {
+                _liftedSub = sub;
+                _liftOriginalIndex = _subsVm.SubscriptionList.IndexOf(sub);
+                IsRowLifted = true;
+            }
+        }
+
+        private void LiftFocusedSubscription()
+        {
+            if (FocusedRow?.Tag is SubscriptionSettingViewModel sub)
+            {
+                ToggleLiftSubscription(sub);
+            }
+        }
+
+        private void HandleLiftedRowCommand(DeckCommand command)
+        {
+            switch (command)
+            {
+                case DeckCommand.NavigateUp:
+                    MoveLiftedSubscription(-1);
+                    break;
+
+                case DeckCommand.NavigateDown:
+                    MoveLiftedSubscription(1);
+                    break;
+
+                case DeckCommand.Activate:
+                case DeckCommand.ReorderToggle:
+                    DropLiftedRow();
+                    break;
+
+                case DeckCommand.Back:
+                    CancelLiftedRow();
+                    break;
+
+                // everything else is inert while a row is lifted
+            }
+        }
+
+        private void MoveLiftedSubscription(int direction)
+        {
+            _subsVm.MoveSelectedSubscription(_liftedSub, direction);
+            RefreshSubscriptionRows();
+            FocusSubscription(_liftedSub);
+        }
+
+        private void DropLiftedRow()
+        {
+            bool moved = _subsVm.SubscriptionList.IndexOf(_liftedSub) != _liftOriginalIndex;
+
+            IsRowLifted = false;
+            _liftedSub = null;
+
+            if (moved)
+            {
+                Logger.Info("Deck mode: catalog subscription order changed");
+                PersistSubscriptions(_subsVm);
+            }
+        }
+
+        private void CancelLiftedRow()
+        {
+            int currentIndex = _subsVm.SubscriptionList.IndexOf(_liftedSub);
+
+            if (currentIndex >= 0 && currentIndex != _liftOriginalIndex)
+            {
+                _subsVm.MoveSelectedSubscription(_liftedSub, _liftOriginalIndex - currentIndex);
+                RefreshSubscriptionRows();
+                FocusSubscription(_liftedSub);
+            }
+
+            IsRowLifted = false;
+            _liftedSub = null;
+        }
+
+        #endregion
+
+        #region Remove
+
+        private void BeginRemoveFocusedSubscription()
+        {
+            if (!(FocusedRow?.Tag is SubscriptionSettingViewModel sub))
+            {
+                return; // the Add row and headers are not removable
+            }
+
+            _pendingRemoveSub = sub;
+            ConfirmText = $"Remove the catalog {(string.IsNullOrWhiteSpace(sub.Name) ? sub.Url : sub.Name)}? Its mods will no longer appear in Browse catalog.";
+            IsConfirmOpen = true;
+        }
+
+        private void RemoveConfirmedSubscription()
+        {
+            if (_pendingRemoveSub == null || _subsVm == null)
+            {
+                return;
+            }
+
+            Logger.Info($"Deck mode: removing catalog subscription {_pendingRemoveSub.Url}");
+
+            // fires ListDataChanged, which persists and rebuilds the rows
+            _subsVm.RemoveSelectedSubscription(_pendingRemoveSub);
+            _pendingRemoveSub = null;
+        }
+
+        #endregion
+
+        #region Add
+
+        private void OpenAddSubscription()
+        {
+            _subsVm.NewUrlText = ""; // discard any prefill left by a cancelled attempt
+            _subsVm.AddNewSubscription(); // prefills NewUrlText when the clipboard holds an iros:// link
+
+            _isAddingSubscription = true;
+            TextDraft = _subsVm.NewUrlText ?? "";
+            IsTextOverlayOpen = true;
+        }
+
+        private void TryAddSubscription()
+        {
+            string url = (TextDraft ?? "").Trim();
+
+            if (!url.StartsWith("iros://"))
+            {
+                TextOverlayStatus = "The URL must start with iros://";
+                return;
+            }
+
+            if (_subsVm.SubscriptionList.Any(s => s.Url == url))
+            {
+                TextOverlayStatus = "Already subscribed to this catalog";
+                return;
+            }
+
+            _subsVm.NewUrlText = url;
+
+            if (_subsVm.SaveSubscription())
+            {
+                // name resolution is queued; ListDataChanged persists and adds the row when it lands
+                Logger.Info($"Deck mode: adding catalog subscription {url}");
+                CloseTextOverlay();
+                RefreshSubscriptionRows(); // shows the resolving placeholder
+            }
+            else
+            {
+                TextOverlayStatus = string.IsNullOrWhiteSpace(_subsVm.StatusMessage) ? "Could not add the catalog" : _subsVm.StatusMessage;
+            }
+        }
+
+        private void CloseTextOverlay()
+        {
+            IsTextOverlayOpen = false;
+            _isAddingSubscription = false;
+            TextOverlayStatus = "";
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Live-apply for subscription changes: push the list back through the desktop
+        /// save path, persist, and let the catalog re-check its sources.
+        /// </summary>
+        private void PersistSubscriptions(GeneralSettingsViewModel vm)
+        {
+            // SaveSettings pops a modal validation dialog when paths are missing;
+            // pre-check so Deck mode degrades to a status message instead
+            if (string.IsNullOrWhiteSpace(vm.FF7ExePathInput) || string.IsNullOrWhiteSpace(vm.LibraryPathInput))
+            {
+                Sys.Message(new WMessage("Cannot save - set the game and library paths in the desktop settings first", true));
+                return;
+            }
+
+            try
+            {
+                if (vm.SaveSettings())
+                {
+                    Sys.SaveSettings();
+                    _onCatalogChanged?.Invoke();
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e);
+                Sys.Message(new WMessage("Failed to save catalog subscriptions", true));
+            }
+        }
+
+        #endregion
+
         /// <summary>Rebuilds legend glyphs after the active input device changes.</summary>
         public void RefreshLegend()
         {
             RebuildLegend();
+            NotifyPropertyChanged(nameof(ConfirmHint));
         }
 
         private void RebuildLegend()
@@ -521,7 +960,18 @@ namespace AppUI.Deck.Settings
 
             if (IsTextOverlayOpen)
             {
-                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Save"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, _isAddingSubscription ? "Add" : "Save"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"));
+            }
+            else if (IsConfirmOpen)
+            {
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Remove"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"));
+            }
+            else if (IsRowLifted)
+            {
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Drop"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"));
             }
             else if (IsValuePanelOpen)
@@ -536,7 +986,12 @@ namespace AppUI.Deck.Settings
 
                 DeckSettingRowViewModel row = FocusedRow;
 
-                if (row != null)
+                if (row?.Tag is SubscriptionSettingViewModel)
+                {
+                    items.Add(DeckGlyphs.Item(DeckLegendInput.Reorder, "Reorder"));
+                    items.Add(DeckGlyphs.Item(DeckLegendInput.Options, "Remove"));
+                }
+                else if (row != null)
                 {
                     switch (row.Kind)
                     {

@@ -92,7 +92,10 @@ namespace AppUI.Deck
             ProfilesSection = new Profiles.DeckProfilesViewModel(main);
             ProfilesSection.PropertyChanged += ProfilesSection_PropertyChanged;
 
-            SettingsSection = new Settings.DeckSettingsViewModel(onQuitRequested: () => IsQuitPromptOpen = true);
+            SettingsSection = new Settings.DeckSettingsViewModel(
+                onQuitRequested: () => IsQuitPromptOpen = true,
+                // same follow-up the desktop runs after subscription changes
+                onCatalogChanged: () => Main.CatalogMods.ForceCheckCatalogUpdateAsync());
             SettingsSection.PropertyChanged += SettingsSection_PropertyChanged;
 
             // rebuild every legend when the active input device (keyboard/pad) changes

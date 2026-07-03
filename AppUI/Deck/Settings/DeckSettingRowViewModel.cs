@@ -42,6 +42,9 @@ namespace AppUI.Deck.Settings
 
         internal Action OnActivated { get; private set; }
 
+        /// <summary>Optional payload for list-style levels (e.g. the subscription behind a row).</summary>
+        internal object Tag { get; set; }
+
         public bool IsHeader { get { return Kind == DeckSettingRowKind.Header; } }
         public bool IsAction { get { return Kind == DeckSettingRowKind.Action; } }
         public bool IsToggle { get { return Kind == DeckSettingRowKind.Toggle; } }
