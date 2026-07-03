@@ -584,6 +584,12 @@ namespace AppUI.Deck.Profiles
             }
         }
 
+        /// <summary>Rebuilds legend glyphs after the active input device changes.</summary>
+        public void RefreshLegend()
+        {
+            RebuildLegend();
+        }
+
         private void RebuildLegend()
         {
             var items = new List<DeckLegendItem>();

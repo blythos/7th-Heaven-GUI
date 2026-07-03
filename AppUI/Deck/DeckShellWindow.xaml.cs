@@ -21,6 +21,7 @@ namespace AppUI.Deck
         private MainWindowViewModel _mainViewModel;
         private DeckCommandRouter _router;
         private KeyboardInputSource _keyboardSource;
+        private ControllerInputSource _controllerSource;
 
         public DeckShellWindow()
         {
@@ -54,6 +55,10 @@ namespace AppUI.Deck
             _keyboardSource = new KeyboardInputSource(this);
             _router.AddSource(_keyboardSource);
 
+            // physical pad support; polls and hot-plugs in the background
+            _controllerSource = new ControllerInputSource();
+            _router.AddSource(_controllerSource);
+
             // free-text fields (catalog search) need raw keys to reach the TextBox
             ViewModel.PropertyChanged += (s, args) =>
             {
@@ -81,6 +86,7 @@ namespace AppUI.Deck
         {
             base.OnClosing(e);
             _keyboardSource?.Detach();
+            _controllerSource?.Dispose();
         }
 
         private void lstMods_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)

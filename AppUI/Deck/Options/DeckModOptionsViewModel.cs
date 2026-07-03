@@ -439,6 +439,12 @@ namespace AppUI.Deck.Options
             _onClosed?.Invoke();
         }
 
+        /// <summary>Rebuilds legend glyphs after the active input device changes.</summary>
+        public void RefreshLegend()
+        {
+            RebuildLegend();
+        }
+
         private void RebuildLegend()
         {
             var items = new List<DeckLegendItem>();

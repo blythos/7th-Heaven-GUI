@@ -370,6 +370,7 @@ namespace AppUI.Deck.Catalog
                     return false; // at the root: shell sends focus to the sidebar
 
                 case DeckCommand.Search:
+                case DeckCommand.OpenOptions: // pad Y opens search here, matching the legend
                     OpenSearchOverlay();
                     return true;
 
@@ -591,6 +592,12 @@ namespace AppUI.Deck.Catalog
 
             FocusedModIndex = _mods.Any() ? 0 : -1;
             NotifyPropertyChanged(nameof(ModsHeader));
+        }
+
+        /// <summary>Rebuilds legend glyphs after the active input device changes.</summary>
+        public void RefreshLegend()
+        {
+            RebuildLegend();
         }
 
         private void RebuildLegend()

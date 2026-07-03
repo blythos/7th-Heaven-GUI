@@ -1,3 +1,5 @@
+using System;
+
 namespace AppUI.Deck
 {
     public enum DeckGlyphSet
@@ -28,7 +30,21 @@ namespace AppUI.Deck
     /// </summary>
     public static class DeckGlyphs
     {
-        public static DeckGlyphSet CurrentSet { get; set; } = DeckGlyphSet.Keyboard;
+        public static DeckGlyphSet CurrentSet { get; private set; } = DeckGlyphSet.Keyboard;
+
+        /// <summary>Raised when the active glyph set changes so legends can rebuild.</summary>
+        public static event Action GlyphSetChanged;
+
+        /// <summary>Input sources call this with their set whenever they raise a command,
+        /// so the legend always shows the device the user is actually holding.</summary>
+        public static void SetCurrentSet(DeckGlyphSet set)
+        {
+            if (CurrentSet != set)
+            {
+                CurrentSet = set;
+                GlyphSetChanged?.Invoke();
+            }
+        }
 
         public static DeckLegendItem Item(DeckLegendInput input, string label)
         {

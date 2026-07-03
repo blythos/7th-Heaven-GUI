@@ -94,7 +94,19 @@ namespace AppUI.Deck
             SettingsSection = new Settings.DeckSettingsViewModel(onQuitRequested: () => IsQuitPromptOpen = true);
             SettingsSection.PropertyChanged += SettingsSection_PropertyChanged;
 
+            // rebuild every legend when the active input device (keyboard/pad) changes
+            DeckGlyphs.GlyphSetChanged += OnGlyphSetChanged;
+
             UpdateSectionFlags();
+            RebuildLegend();
+        }
+
+        private void OnGlyphSetChanged()
+        {
+            CatalogSection.RefreshLegend();
+            ProfilesSection.RefreshLegend();
+            SettingsSection.RefreshLegend();
+            ActiveOptionsScreen?.RefreshLegend();
             RebuildLegend();
         }
 

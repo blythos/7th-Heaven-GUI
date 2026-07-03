@@ -83,12 +83,12 @@ namespace AppUI.Deck.Input
             {
                 if (e.Key == Key.Escape)
                 {
-                    CommandRaised?.Invoke(DeckCommand.Back);
+                    RaiseCommand(DeckCommand.Back);
                     e.Handled = true;
                 }
                 else if (e.Key == Key.Enter)
                 {
-                    CommandRaised?.Invoke(DeckCommand.Activate);
+                    RaiseCommand(DeckCommand.Activate);
                     e.Handled = true;
                 }
 
@@ -110,7 +110,7 @@ namespace AppUI.Deck.Input
 
             if (KeyMap.TryGetValue(e.Key, out DeckCommand command))
             {
-                CommandRaised?.Invoke(command);
+                RaiseCommand(command);
                 e.Handled = true;
             }
         }
@@ -127,11 +127,17 @@ namespace AppUI.Deck.Input
             // long press already fired at the threshold; the release is a no-op then
             if (_playKeyDownAt.HasValue && !_longPressRaised)
             {
-                CommandRaised?.Invoke(DeckCommand.PlayShort);
+                RaiseCommand(DeckCommand.PlayShort);
             }
 
             _playKeyDownAt = null;
             e.Handled = true;
+        }
+
+        private void RaiseCommand(DeckCommand command)
+        {
+            DeckGlyphs.SetCurrentSet(DeckGlyphSet.Keyboard);
+            CommandRaised?.Invoke(command);
         }
 
         private void StartLongPressTimer()
@@ -143,7 +149,7 @@ namespace AppUI.Deck.Input
             {
                 StopLongPressTimer();
                 _longPressRaised = true;
-                CommandRaised?.Invoke(DeckCommand.PlayLong);
+                RaiseCommand(DeckCommand.PlayLong);
             };
             _longPressTimer.Start();
         }
