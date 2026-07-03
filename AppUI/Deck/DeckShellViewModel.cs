@@ -43,6 +43,18 @@ namespace AppUI.Deck
         private string _launchStatusLog = "";
         private GameLaunchViewModel _launchViewModel;
 
+        private bool _isPlayConfirmOpen;
+        private bool _isPlayPickerOpen;
+        private int _focusedPlayVariantIndex;
+
+        private static readonly (AppCore.DefaultPlayCommandOptions Command, string Label)[] PlayVariantList = new[]
+        {
+            (AppCore.DefaultPlayCommandOptions.PlayWithMods, "Play with mods"),
+            (AppCore.DefaultPlayCommandOptions.PlayWithoutMods, "Play without mods"),
+            (AppCore.DefaultPlayCommandOptions.PlayWithDebugLog, "Play with debug log"),
+            (AppCore.DefaultPlayCommandOptions.PlayWithVariableDump, "Play with variable dump"),
+        };
+
         private bool _isReorderMode;
         private Guid _reorderingModId;
         private int _reorderOriginalIndex;
@@ -308,6 +320,59 @@ namespace AppUI.Deck
 
         #region Launch state
 
+        public bool IsPlayConfirmOpen
+        {
+            get { return _isPlayConfirmOpen; }
+            private set
+            {
+                _isPlayConfirmOpen = value;
+                NotifyPropertyChanged();
+                RebuildLegend();
+            }
+        }
+
+        public string PlayConfirmText
+        {
+            get
+            {
+                switch (Sys.Settings.GameLaunchSettings.DefaultPlayCommand)
+                {
+                    case AppCore.DefaultPlayCommandOptions.PlayWithDebugLog:
+                        return "Launch with debug logging? This slows the game down and writes large log files.";
+                    case AppCore.DefaultPlayCommandOptions.PlayWithVariableDump:
+                        return "Launch with variable dump? This is for advanced debugging.";
+                    default:
+                        return "";
+                }
+            }
+        }
+
+        public bool IsPlayPickerOpen
+        {
+            get { return _isPlayPickerOpen; }
+            private set
+            {
+                _isPlayPickerOpen = value;
+                NotifyPropertyChanged();
+                RebuildLegend();
+            }
+        }
+
+        public List<string> PlayVariants
+        {
+            get { return PlayVariantList.Select(v => v.Label).ToList(); }
+        }
+
+        public int FocusedPlayVariantIndex
+        {
+            get { return _focusedPlayVariantIndex; }
+            set
+            {
+                _focusedPlayVariantIndex = value;
+                NotifyPropertyChanged();
+            }
+        }
+
         public bool IsLaunching
         {
             get { return _isLaunching; }
@@ -365,6 +430,27 @@ namespace AppUI.Deck
                     IsQuitPromptOpen = false;
                 }
 
+                return true;
+            }
+
+            if (IsPlayConfirmOpen)
+            {
+                if (command == DeckCommand.Activate)
+                {
+                    IsPlayConfirmOpen = false;
+                    BeginLaunch(Sys.Settings.GameLaunchSettings.DefaultPlayCommand);
+                }
+                else if (command == DeckCommand.Back)
+                {
+                    IsPlayConfirmOpen = false;
+                }
+
+                return true;
+            }
+
+            if (IsPlayPickerOpen)
+            {
+                HandlePlayPickerCommand(command);
                 return true;
             }
 
@@ -488,8 +574,11 @@ namespace AppUI.Deck
                     OpenModOptions();
                     return true;
 
-                // deferred to later milestones; consumed so nothing else reacts
                 case DeckCommand.PlayLong:
+                    OpenPlayPicker();
+                    return true;
+
+                // deferred to later milestones; consumed so nothing else reacts
                 case DeckCommand.Search:
                     Logger.Info($"Deck command {command} is not implemented in this milestone");
                     return true;
@@ -846,6 +935,27 @@ namespace AppUI.Deck
                 return;
             }
 
+            if (IsPlayConfirmOpen)
+            {
+                LegendItems = new List<DeckLegendItem>()
+                {
+                    DeckGlyphs.Item(DeckLegendInput.Activate, "Launch"),
+                    DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"),
+                };
+                return;
+            }
+
+            if (IsPlayPickerOpen)
+            {
+                LegendItems = new List<DeckLegendItem>()
+                {
+                    DeckGlyphs.Item(DeckLegendInput.Move, "Move"),
+                    DeckGlyphs.Item(DeckLegendInput.Activate, "Set default"),
+                    DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"),
+                };
+                return;
+            }
+
             if (!IsLaunching && CurrentSection == DeckSection.BrowseCatalog
                 && (CurrentFocusArea == FocusArea.Content || CatalogSection.IsSearchOverlayOpen))
             {
@@ -904,25 +1014,94 @@ namespace AppUI.Deck
         #region Launch flow
 
         /// <summary>
-        /// Launches the game with default flags by driving <see cref="GameLaunchViewModel"/> /
-        /// <see cref="GameLauncher"/> directly, showing progress inline. Deliberately does not
-        /// call <see cref="MainWindowViewModel.LaunchGame"/> (that opens the desktop window).
+        /// Play action: launches using the stored default play command, with an inline
+        /// confirm first for the debug variants (the desktop pops a dialog for those).
         /// </summary>
         private void StartLaunch()
+        {
+            if (IsLaunching || IsPlayPickerOpen || IsPlayConfirmOpen)
+            {
+                return;
+            }
+
+            AppCore.DefaultPlayCommandOptions command = Sys.Settings.GameLaunchSettings.DefaultPlayCommand;
+
+            if (command == AppCore.DefaultPlayCommandOptions.PlayWithDebugLog
+                || command == AppCore.DefaultPlayCommandOptions.PlayWithVariableDump)
+            {
+                NotifyPropertyChanged(nameof(PlayConfirmText));
+                IsPlayConfirmOpen = true;
+                return;
+            }
+
+            BeginLaunch(command);
+        }
+
+        private void OpenPlayPicker()
         {
             if (IsLaunching)
             {
                 return;
             }
 
-            Logger.Info("Deck mode: starting game launch (default flags)");
+            int current = Array.FindIndex(PlayVariantList, v => v.Command == Sys.Settings.GameLaunchSettings.DefaultPlayCommand);
+            FocusedPlayVariantIndex = Math.Max(0, current);
+            IsPlayPickerOpen = true;
+        }
+
+        private void HandlePlayPickerCommand(DeckCommand command)
+        {
+            switch (command)
+            {
+                case DeckCommand.NavigateUp:
+                    FocusedPlayVariantIndex = Math.Max(0, FocusedPlayVariantIndex - 1);
+                    break;
+
+                case DeckCommand.NavigateDown:
+                    FocusedPlayVariantIndex = Math.Min(PlayVariantList.Length - 1, FocusedPlayVariantIndex + 1);
+                    break;
+
+                case DeckCommand.Activate:
+                    var selected = PlayVariantList[FocusedPlayVariantIndex];
+
+                    Logger.Info($"Deck mode: default play command set to {selected.Command}");
+                    Sys.Settings.GameLaunchSettings.DefaultPlayCommand = selected.Command;
+                    Sys.SaveSettings();
+
+                    IsPlayPickerOpen = false;
+                    break;
+
+                case DeckCommand.Back:
+                    IsPlayPickerOpen = false;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Launches the game by driving <see cref="GameLaunchViewModel"/> /
+        /// <see cref="GameLauncher"/> directly, showing progress inline. Deliberately does not
+        /// call <see cref="MainWindowViewModel.LaunchGame"/> (that opens the desktop window).
+        /// </summary>
+        private void BeginLaunch(AppCore.DefaultPlayCommandOptions command)
+        {
+            if (IsLaunching)
+            {
+                return;
+            }
+
+            Logger.Info($"Deck mode: starting game launch ({command})");
 
             LaunchFailed = false;
             LaunchStatusLog = "Preparing…\n";
             IsLaunching = true;
             RebuildLegend();
 
-            _launchViewModel = new GameLaunchViewModel(variableDump: false, debugLogging: false);
+            _launchViewModel = new GameLaunchViewModel(
+                variableDump: command == AppCore.DefaultPlayCommandOptions.PlayWithVariableDump,
+                debugLogging: command == AppCore.DefaultPlayCommandOptions.PlayWithDebugLog)
+            {
+                IsLaunchingWithNoMods = command == AppCore.DefaultPlayCommandOptions.PlayWithoutMods,
+            };
 
             // subscribe directly: GameLaunchViewModel.StatusLog is only appended to when
             // the ShowLauncherWindow setting is on, so it can't be relied on here

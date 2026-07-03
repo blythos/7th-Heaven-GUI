@@ -358,6 +358,86 @@
             </Border>
         </Grid>
 
+        <!-- play variant picker (long-press play) -->
+        <Grid Background="#B3141414"
+              Visibility="{Binding IsPlayPickerOpen, Converter={StaticResource BoolToVis}}">
+            <Border Background="{DynamicResource SecondaryAppBackground}"
+                    Padding="28,24"
+                    MinWidth="360"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Default play command" FontSize="18" FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryControlForeground}"/>
+
+                    <ListBox x:Name="lstPlayVariants"
+                             ItemsSource="{Binding PlayVariants}"
+                             SelectedIndex="{Binding FocusedPlayVariantIndex, Mode=TwoWay}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Focusable="False"
+                             KeyboardNavigation.DirectionalNavigation="None"
+                             Margin="0,14,0,0"
+                             MouseDoubleClick="lstPlayVariants_MouseDoubleClick">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Focusable" Value="False"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="rowBorder"
+                                                    BorderThickness="2"
+                                                    BorderBrush="Transparent"
+                                                    Background="{DynamicResource PrimaryControlBackground}"
+                                                    Padding="14,10"
+                                                    Margin="0,2">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="rowBorder" Property="Background" Value="{DynamicResource PrimaryControlMouseOver}"/>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="rowBorder" Property="BorderBrush" Value="{DynamicResource DeckAccentBrush}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" FontSize="15"
+                                           Foreground="{DynamicResource PrimaryControlForeground}"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <TextBlock Text="Sets what the play button does. Enter confirms · Esc cancels"
+                               Margin="0,12,0,0"
+                               Style="{StaticResource DeckSecondaryText}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- confirm for debug launch variants -->
+        <Grid Background="#B3141414"
+              Visibility="{Binding IsPlayConfirmOpen, Converter={StaticResource BoolToVis}}">
+            <Border Background="{DynamicResource SecondaryAppBackground}"
+                    Padding="36,28"
+                    MaxWidth="560"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="{Binding PlayConfirmText}" FontSize="17" TextWrapping="Wrap"
+                               Foreground="{DynamicResource PrimaryControlForeground}"/>
+                    <TextBlock Text="Enter launches · Esc cancels" Margin="0,12,0,0"
+                               Style="{StaticResource DeckSecondaryText}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
         <!-- inline launch overlay -->
         <Grid Background="#E6141414"
               Visibility="{Binding IsLaunching, Converter={StaticResource BoolToVis}}">

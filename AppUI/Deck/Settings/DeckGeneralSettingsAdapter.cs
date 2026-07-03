@@ -50,8 +50,18 @@ namespace AppUI.Deck.Settings
             List<string> ffnxChannels = Enum.GetNames(typeof(FFNxUpdateChannelOptions)).ToList();
             List<string> appChannels = Enum.GetNames(typeof(AppUpdateChannelOptions)).ToList();
 
+            List<string> playCommands = new List<string>() { "Play with mods", "Play without mods", "Play with debug log", "Play with variable dump" };
+
             return new List<DeckSettingRowViewModel>()
             {
+                DeckSettingRowViewModel.Header("Play"),
+
+                // stored on GameLaunchSettings, so it persists via Sys.SaveSettings directly
+                DeckSettingRowViewModel.Choice("Default play command", "What the play button launches; hold play to change it from anywhere",
+                    playCommands,
+                    () => (int)Sys.Settings.GameLaunchSettings.DefaultPlayCommand,
+                    i => { Sys.Settings.GameLaunchSettings.DefaultPlayCommand = (DefaultPlayCommandOptions)i; Sys.SaveSettings(); }),
+
                 DeckSettingRowViewModel.Header("Updates"),
 
                 DeckSettingRowViewModel.Toggle("Check for updates automatically", "Check for app and driver updates at startup",

@@ -132,6 +132,11 @@ namespace AppUI.Deck
             DeckLinkOpener.Open(ViewModel?.FocusedModLink);
         }
 
+        private void lstPlayVariants_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            ViewModel?.HandleCommand(DeckCommand.Activate);
+        }
+
         #endregion
     }
 }
