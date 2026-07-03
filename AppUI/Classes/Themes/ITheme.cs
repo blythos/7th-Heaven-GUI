@@ -12,7 +12,9 @@ namespace AppUI.Classes.Themes
         LightModeWithBackground,
         Classic7H,
         Tsunamods,
-        SeventhHeavenTheme
+        SeventhHeavenTheme,
+        DeckDark,
+        DeckLight
     }
 
     public interface ITheme
