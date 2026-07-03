@@ -33,7 +33,7 @@
                      PreviewMouseLeftButtonDown="lstCategories_PreviewMouseLeftButtonDown">
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
-                        <Setter Property="Focusable" Value="False"/>
+                        <Setter Property="Focusable" Value="True"/>
                         <Setter Property="Padding" Value="0"/>
                         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                         <Setter Property="Template">
@@ -160,7 +160,7 @@
                      MouseDoubleClick="lstCatalogMods_MouseDoubleClick">
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
-                        <Setter Property="Focusable" Value="False"/>
+                        <Setter Property="Focusable" Value="True"/>
                         <Setter Property="Padding" Value="0"/>
                         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                         <Setter Property="Template">

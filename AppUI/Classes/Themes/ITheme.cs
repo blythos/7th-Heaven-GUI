@@ -14,7 +14,8 @@ namespace AppUI.Classes.Themes
         Tsunamods,
         SeventhHeavenTheme,
         DeckDark,
-        DeckLight
+        DeckLight,
+        DeckFF7
     }
 
     public interface ITheme

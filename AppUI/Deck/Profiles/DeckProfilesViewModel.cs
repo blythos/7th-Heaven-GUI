@@ -68,6 +68,7 @@ namespace AppUI.Deck.Profiles
             Switch,
             NewFromActive,
             Copy,
+            Overwrite,
             Delete,
         }
 
@@ -76,6 +77,7 @@ namespace AppUI.Deck.Profiles
             (ProfileAction.Switch, "Switch to profile"),
             (ProfileAction.NewFromActive, "New profile from active"),
             (ProfileAction.Copy, "Copy this profile"),
+            (ProfileAction.Overwrite, "Overwrite with active loadout"),
             (ProfileAction.Delete, "Delete this profile"),
         };
 
@@ -95,7 +97,9 @@ namespace AppUI.Deck.Profiles
         private string _textPrompt = "";
         private ProfileAction _pendingTextAction;
 
-        private bool _isDeleteConfirmOpen;
+        private bool _isConfirmOpen;
+        private string _confirmText = "";
+        private ProfileAction _pendingConfirmAction;
 
         public DeckProfilesViewModel(MainWindowViewModel main)
         {
@@ -215,14 +219,24 @@ namespace AppUI.Deck.Profiles
             }
         }
 
-        public bool IsDeleteConfirmOpen
+        public bool IsConfirmOpen
         {
-            get { return _isDeleteConfirmOpen; }
+            get { return _isConfirmOpen; }
             private set
             {
-                _isDeleteConfirmOpen = value;
+                _isConfirmOpen = value;
                 NotifyPropertyChanged();
                 RebuildLegend();
+            }
+        }
+
+        public string ConfirmText
+        {
+            get { return _confirmText; }
+            private set
+            {
+                _confirmText = value;
+                NotifyPropertyChanged();
             }
         }
 
@@ -261,16 +275,16 @@ namespace AppUI.Deck.Profiles
                 return true;
             }
 
-            if (IsDeleteConfirmOpen)
+            if (IsConfirmOpen)
             {
                 if (command == DeckCommand.Activate)
                 {
-                    IsDeleteConfirmOpen = false;
-                    DeleteFocusedProfile();
+                    IsConfirmOpen = false;
+                    RunConfirmedAction();
                 }
                 else if (command == DeckCommand.Back)
                 {
-                    IsDeleteConfirmOpen = false;
+                    IsConfirmOpen = false;
                 }
 
                 return true;
@@ -389,6 +403,25 @@ namespace AppUI.Deck.Profiles
                     }
                     break;
 
+                case ProfileAction.Overwrite:
+                    if (FocusedProfile == null)
+                    {
+                        break;
+                    }
+
+                    if (FocusedProfile.IsCurrent)
+                    {
+                        // overwriting the active profile with itself is just a save
+                        MainWindowViewModel.SaveActiveProfile();
+                        Sys.Message(new WMessage($"Saved the active loadout to {FocusedProfile.Name}", true));
+                        break;
+                    }
+
+                    _pendingConfirmAction = ProfileAction.Overwrite;
+                    ConfirmText = $"Overwrite {FocusedProfile.Name} with the active loadout ({Sys.Settings.CurrentProfile})? Its current mod list will be lost.";
+                    IsConfirmOpen = true;
+                    break;
+
                 case ProfileAction.Delete:
                     if (FocusedProfile == null)
                     {
@@ -401,8 +434,50 @@ namespace AppUI.Deck.Profiles
                         break;
                     }
 
-                    IsDeleteConfirmOpen = true;
+                    _pendingConfirmAction = ProfileAction.Delete;
+                    ConfirmText = $"Delete profile {FocusedProfile.Name}? This cannot be undone.";
+                    IsConfirmOpen = true;
                     break;
+            }
+        }
+
+        private void RunConfirmedAction()
+        {
+            if (_pendingConfirmAction == ProfileAction.Delete)
+            {
+                DeleteFocusedProfile();
+            }
+            else if (_pendingConfirmAction == ProfileAction.Overwrite)
+            {
+                OverwriteFocusedProfile();
+            }
+        }
+
+        private void OverwriteFocusedProfile()
+        {
+            DeckProfileRowViewModel row = FocusedProfile;
+
+            if (row == null || row.IsCurrent)
+            {
+                return;
+            }
+
+            try
+            {
+                Logger.Info($"Deck mode: overwriting profile {row.Name} with {Sys.Settings.CurrentProfile}");
+
+                MainWindowViewModel.SaveActiveProfile();
+                File.Copy(Sys.PathToCurrentProfileFile, ProfilePath(row.Name), overwrite: true);
+
+                Sys.Message(new WMessage($"Overwrote {row.Name} with the active loadout", true));
+
+                row.DetailsText = null;
+                LoadFocusedProfileDetails();
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e);
+                Sys.Message(new WMessage($"Failed to overwrite profile {row.Name}", true) { LoggedException = e });
             }
         }
 
@@ -575,7 +650,16 @@ namespace AppUI.Deck.Profiles
             try
             {
                 Profile profile = Util.Deserialize<Profile>(ProfilePath(row.Name));
-                row.DetailsText = string.Join("\n", profile.GetDetails());
+
+                List<string> activeMods = (profile.Items ?? new List<ProfileItem>())
+                    .Where(i => i.IsModActive)
+                    .Select(i => Sys.Library.GetItem(i.ModID)?.CachedDetails?.Name ?? "Unknown mod (not installed)")
+                    .OrderBy(n => n)
+                    .ToList();
+
+                row.DetailsText = activeMods.Any()
+                    ? string.Join("\n", activeMods.Select(n => $"•  {n}"))
+                    : "No active mods";
             }
             catch (Exception e)
             {
@@ -599,9 +683,9 @@ namespace AppUI.Deck.Profiles
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Create"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"));
             }
-            else if (IsDeleteConfirmOpen)
+            else if (IsConfirmOpen)
             {
-                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Delete"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Confirm"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"));
             }
             else if (IsActionPanelOpen)

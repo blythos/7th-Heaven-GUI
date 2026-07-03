@@ -41,7 +41,7 @@
                      MouseDoubleClick="lstSettings_MouseDoubleClick">
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
-                        <Setter Property="Focusable" Value="False"/>
+                        <Setter Property="Focusable" Value="True"/>
                         <Setter Property="Padding" Value="0"/>
                         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                         <Setter Property="Template">
@@ -83,6 +83,12 @@
                                 </ControlTemplate>
                             </Setter.Value>
                         </Setter>
+                        <Style.Triggers>
+                            <!-- headers are captions, not clickable rows -->
+                            <DataTrigger Binding="{Binding IsHeader}" Value="True">
+                                <Setter Property="IsEnabled" Value="False"/>
+                            </DataTrigger>
+                        </Style.Triggers>
                     </Style>
                 </ListBox.ItemContainerStyle>
                 <ListBox.ItemTemplate>
@@ -205,7 +211,7 @@
                          MouseDoubleClick="lstValues_MouseDoubleClick">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
-                            <Setter Property="Focusable" Value="False"/>
+                            <Setter Property="Focusable" Value="True"/>
                             <Setter Property="Padding" Value="0"/>
                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                             <Setter Property="Template">

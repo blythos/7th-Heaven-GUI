@@ -42,8 +42,12 @@ namespace AppUI.Deck
             _mainViewModel = new MainWindowViewModel();
             _mainViewModel.InitViewModel();
 
-            // InitViewModel applied the saved desktop theme; Deck mode always uses its own
-            new ThemeSettingsViewModel(loadThemeXml: false).ApplyBuiltInTheme(AppTheme.DeckDark);
+            // InitViewModel applied the saved desktop theme; Deck mode always uses its own.
+            // FF7 theme is the temporary default for review (switch back to DeckDark later);
+            // its accent is the game's teal-green label colour.
+            new ThemeSettingsViewModel(loadThemeXml: false).ApplyBuiltInTheme(AppTheme.DeckFF7);
+            App.Current.Resources["DeckAccentColor"] = System.Windows.Media.Color.FromRgb(0x2F, 0xD6, 0xA3);
+            App.Current.Resources["DeckAccentBrush"] = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2F, 0xD6, 0xA3));
 
             ViewModel = new DeckShellViewModel(_mainViewModel);
             DataContext = ViewModel;

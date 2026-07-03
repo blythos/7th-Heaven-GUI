@@ -62,6 +62,9 @@ namespace AppUI.Classes.Themes
                 case AppTheme.DeckLight:
                     return new Deck.Themes.DeckLightTheme();
 
+                case AppTheme.DeckFF7:
+                    return new Deck.Themes.DeckFF7Theme();
+
                 default:
                     return null;
             }

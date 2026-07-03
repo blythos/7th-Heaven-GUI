@@ -29,7 +29,8 @@ namespace AppUI.Deck
         }
 
         private FocusArea _focusArea = FocusArea.TopBar;
-        private int _currentSectionIndex = 0; // start on My mods
+        private int _currentSectionIndex = 0; // start on Installed mods
+        private bool _isPlayButtonFocused;
         private bool _isQuitPromptOpen;
         private int _focusedModIndex = -1;
         private InstalledModViewModel _focusedMod;
@@ -211,6 +212,19 @@ namespace AppUI.Deck
         public bool IsContentFocused
         {
             get { return _focusArea == FocusArea.Content; }
+        }
+
+        /// <summary>The play button sits at the end of the top-bar focus order.</summary>
+        public bool IsPlayButtonFocused
+        {
+            get { return _isPlayButtonFocused; }
+            private set
+            {
+                _isPlayButtonFocused = value;
+                NotifyPropertyChanged();
+                UpdateSectionFlags();
+                RebuildLegend();
+            }
         }
 
         public bool IsQuitPromptOpen
@@ -549,7 +563,7 @@ namespace AppUI.Deck
                 case DeckCommand.NavigateLeft:
                     if (CurrentFocusArea == FocusArea.TopBar)
                     {
-                        MoveSection(-1);
+                        MoveTopBarFocus(-1);
                     }
 
                     return true;
@@ -557,7 +571,7 @@ namespace AppUI.Deck
                 case DeckCommand.NavigateRight:
                     if (CurrentFocusArea == FocusArea.TopBar)
                     {
-                        MoveSection(1);
+                        MoveTopBarFocus(1);
                     }
 
                     return true;
@@ -614,8 +628,35 @@ namespace AppUI.Deck
             int count = Sections.Count;
             _currentSectionIndex = (_currentSectionIndex + change + count) % count;
 
+            _isPlayButtonFocused = false;
+            NotifyPropertyChanged(nameof(IsPlayButtonFocused));
             CurrentFocusArea = FocusArea.TopBar;
             NotifySectionChanged();
+        }
+
+        /// <summary>
+        /// Left/right on the top bar walks the sections plus the play button as the
+        /// final slot; landing on a section switches to it, landing on play only focuses it.
+        /// </summary>
+        private void MoveTopBarFocus(int change)
+        {
+            int sectionCount = Sections.Count;
+            int slot = _isPlayButtonFocused ? sectionCount : _currentSectionIndex;
+
+            slot = (slot + change + sectionCount + 1) % (sectionCount + 1);
+
+            if (slot == sectionCount)
+            {
+                IsPlayButtonFocused = true;
+            }
+            else
+            {
+                _currentSectionIndex = slot;
+                IsPlayButtonFocused = false;
+                NotifySectionChanged();
+            }
+
+            UpdateSectionFlags();
         }
 
         private bool HandlePageJump(int change)
@@ -645,7 +686,15 @@ namespace AppUI.Deck
         {
             if (CurrentFocusArea == FocusArea.TopBar)
             {
-                TryFocusContent();
+                if (IsPlayButtonFocused)
+                {
+                    StartLaunch();
+                }
+                else
+                {
+                    TryFocusContent();
+                }
+
                 return true;
             }
 
@@ -659,6 +708,12 @@ namespace AppUI.Deck
 
         private void TryFocusContent()
         {
+            if (_isPlayButtonFocused)
+            {
+                _isPlayButtonFocused = false;
+                NotifyPropertyChanged(nameof(IsPlayButtonFocused));
+            }
+
             if (CurrentSection == DeckSection.MyMods && Main.MyMods.ModList.Any())
             {
                 if (FocusedModIndex < 0)
@@ -871,7 +926,7 @@ namespace AppUI.Deck
             for (int i = 0; i < Sections.Count; i++)
             {
                 Sections[i].IsCurrent = (i == _currentSectionIndex);
-                Sections[i].IsFocused = (i == _currentSectionIndex && CurrentFocusArea == FocusArea.TopBar);
+                Sections[i].IsFocused = (i == _currentSectionIndex && CurrentFocusArea == FocusArea.TopBar && !_isPlayButtonFocused);
             }
         }
 
@@ -920,6 +975,8 @@ namespace AppUI.Deck
             if (index >= 0)
             {
                 _currentSectionIndex = index;
+                _isPlayButtonFocused = false;
+                NotifyPropertyChanged(nameof(IsPlayButtonFocused));
                 CurrentFocusArea = FocusArea.TopBar;
                 NotifySectionChanged();
             }
@@ -1019,14 +1076,14 @@ namespace AppUI.Deck
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Options, "Options"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Back"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Sections, "Section"));
-                items.Add(DeckGlyphs.Item(DeckLegendInput.Play, "Play"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Play, "Play (hold: change mode)"));
             }
             else
             {
                 items.Add(DeckGlyphs.Item(DeckLegendInput.LeftRight, "Section"));
-                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Select"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, IsPlayButtonFocused ? "Play" : "Select"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Quit"));
-                items.Add(DeckGlyphs.Item(DeckLegendInput.Play, "Play"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Play, "Play (hold: change mode)"));
             }
 
             LegendItems = items;
