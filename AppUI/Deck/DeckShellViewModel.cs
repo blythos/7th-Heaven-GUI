@@ -33,6 +33,9 @@ namespace AppUI.Deck
         private bool _isQuitPromptOpen;
         private int _focusedModIndex = -1;
         private InstalledModViewModel _focusedMod;
+        private Uri _focusedModImageSource;
+        private string _focusedModReleaseNotes;
+        private string _focusedModLink;
         private List<DeckLegendItem> _legendItems = new List<DeckLegendItem>();
 
         private bool _isLaunching;
@@ -62,7 +65,7 @@ namespace AppUI.Deck
 
             Sections = new ObservableCollection<DeckSectionItemViewModel>()
             {
-                new DeckSectionItemViewModel(DeckSection.MyMods, "My mods"),
+                new DeckSectionItemViewModel(DeckSection.MyMods, "Installed mods"),
                 new DeckSectionItemViewModel(DeckSection.BrowseCatalog, "Browse catalog"),
                 new DeckSectionItemViewModel(DeckSection.Profiles, "Profiles"),
                 new DeckSectionItemViewModel(DeckSection.Settings, "Settings"),
@@ -213,6 +216,36 @@ namespace AppUI.Deck
         public bool HasFocusedMod
         {
             get { return _focusedMod != null; }
+        }
+
+        public Uri FocusedModImageSource
+        {
+            get { return _focusedModImageSource; }
+            private set
+            {
+                _focusedModImageSource = value;
+                NotifyPropertyChanged();
+            }
+        }
+
+        public string FocusedModReleaseNotes
+        {
+            get { return _focusedModReleaseNotes; }
+            private set
+            {
+                _focusedModReleaseNotes = value;
+                NotifyPropertyChanged();
+            }
+        }
+
+        public string FocusedModLink
+        {
+            get { return _focusedModLink; }
+            private set
+            {
+                _focusedModLink = value;
+                NotifyPropertyChanged();
+            }
         }
 
         public bool IsModListVisible
@@ -749,6 +782,48 @@ namespace AppUI.Deck
             FocusedMod = (_focusedModIndex >= 0 && _focusedModIndex < list.Count)
                 ? list[_focusedModIndex]
                 : null;
+
+            // same detail sources the desktop preview pane uses
+            Mod details = FocusedMod?.InstallInfo?.CachedDetails;
+
+            FocusedModReleaseNotes = details?.LatestVersion?.ReleaseNotes;
+            FocusedModLink = details?.Link;
+
+            string imageUrl = details?.LatestVersion?.PreviewImage;
+            string imagePath = string.IsNullOrWhiteSpace(imageUrl)
+                ? null
+                : Sys.ImageCache.GetImagePath(imageUrl, details.ID); // non-blocking; downloads in the background if uncached
+
+            FocusedModImageSource = imagePath == null ? null : new Uri(imagePath);
+        }
+
+        /// <summary>Mouse entry point: clicking a top-bar tab switches to that section.</summary>
+        public void SelectSectionViaMouse(DeckSection section)
+        {
+            if (IsLaunching || IsQuitPromptOpen || ActiveOptionsScreen != null || IsReorderMode)
+            {
+                return;
+            }
+
+            int index = Sections.IndexOf(Sections.FirstOrDefault(s => s.Section == section));
+
+            if (index >= 0)
+            {
+                _currentSectionIndex = index;
+                CurrentFocusArea = FocusArea.TopBar;
+                NotifySectionChanged();
+            }
+        }
+
+        /// <summary>Mouse entry point: clicking inside section content moves navigation focus there.</summary>
+        public void FocusContentViaMouse()
+        {
+            if (IsLaunching || IsQuitPromptOpen || ActiveOptionsScreen != null)
+            {
+                return;
+            }
+
+            TryFocusContent();
         }
 
         private void RebuildLegend()

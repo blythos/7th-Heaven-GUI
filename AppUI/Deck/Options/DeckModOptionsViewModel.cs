@@ -272,6 +272,20 @@ namespace AppUI.Deck.Options
             ApplyLive();
         }
 
+        /// <summary>Mouse entry point: focuses the clicked row and performs its primary action.</summary>
+        public void ActivateRowViaMouse(DeckOptionRowViewModel row)
+        {
+            int index = _rows.IndexOf(row);
+
+            if (index < 0 || IsValuePanelOpen)
+            {
+                return;
+            }
+
+            FocusedRowIndex = index;
+            ActivateFocusedRow();
+        }
+
         private void ActivateFocusedRow()
         {
             DeckOptionRowViewModel row = FocusedRow;

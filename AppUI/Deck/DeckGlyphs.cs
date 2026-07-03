@@ -32,7 +32,22 @@ namespace AppUI.Deck
 
         public static DeckLegendItem Item(DeckLegendInput input, string label)
         {
-            return new DeckLegendItem(Get(input), label);
+            return new DeckLegendItem(Get(input), label, GetCommand(input));
+        }
+
+        /// <summary>The single logical command a legend entry maps to for mouse clicks (null for multi-direction hints).</summary>
+        private static Input.DeckCommand? GetCommand(DeckLegendInput input)
+        {
+            switch (input)
+            {
+                case DeckLegendInput.Activate: return Input.DeckCommand.Activate;
+                case DeckLegendInput.Back: return Input.DeckCommand.Back;
+                case DeckLegendInput.Reorder: return Input.DeckCommand.ReorderToggle;
+                case DeckLegendInput.Options: return Input.DeckCommand.OpenOptions;
+                case DeckLegendInput.Search: return Input.DeckCommand.Search;
+                case DeckLegendInput.Play: return Input.DeckCommand.PlayShort;
+                default: return null;
+            }
         }
 
         public static string Get(DeckLegendInput input)

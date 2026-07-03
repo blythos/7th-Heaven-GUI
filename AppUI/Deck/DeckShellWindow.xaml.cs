@@ -90,5 +90,48 @@ namespace AppUI.Deck
                 lstMods.ScrollIntoView(lstMods.SelectedItem);
             }
         }
+
+        #region Mouse support
+
+        /// <summary>Clicking anywhere in section content moves navigation focus there.</summary>
+        private void Window_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (ViewModel == null || topBar.IsMouseOver || legendBar.IsMouseOver)
+            {
+                return;
+            }
+
+            ViewModel.FocusContentViaMouse();
+        }
+
+        private void SectionTab_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (((FrameworkElement)sender).DataContext is DeckSectionItemViewModel item)
+            {
+                ViewModel?.SelectSectionViaMouse(item.Section);
+                e.Handled = true;
+            }
+        }
+
+        private void LegendChip_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (((FrameworkElement)sender).DataContext is DeckLegendItem item && item.Command.HasValue)
+            {
+                _router?.Route(item.Command.Value);
+                e.Handled = true;
+            }
+        }
+
+        private void lstMods_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            ViewModel?.HandleCommand(DeckCommand.Activate);
+        }
+
+        private void ModLink_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            DeckLinkOpener.Open(ViewModel?.FocusedModLink);
+        }
+
+        #endregion
     }
 }

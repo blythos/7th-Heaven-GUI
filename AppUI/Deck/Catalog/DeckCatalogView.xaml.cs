@@ -1,3 +1,4 @@
+using AppUI.Deck.Input;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -67,5 +68,29 @@ namespace AppUI.Deck.Catalog
                 lstCatalogMods.ScrollIntoView(lstCatalogMods.SelectedItem);
             }
         }
+
+        #region Mouse support
+
+        private void lstCategories_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            (DataContext as DeckCatalogViewModel)?.FocusColumnViaMouse(DeckCatalogViewModel.CatalogColumn.Categories);
+        }
+
+        private void lstCatalogMods_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            (DataContext as DeckCatalogViewModel)?.FocusColumnViaMouse(DeckCatalogViewModel.CatalogColumn.Mods);
+        }
+
+        private void lstCatalogMods_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            (DataContext as DeckCatalogViewModel)?.HandleCommand(DeckCommand.Activate);
+        }
+
+        private void ModLink_MouseLeftButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            DeckLinkOpener.Open((DataContext as DeckCatalogViewModel)?.FocusedModLink);
+        }
+
+        #endregion
     }
 }

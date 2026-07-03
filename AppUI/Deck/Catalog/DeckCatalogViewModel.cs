@@ -43,6 +43,10 @@ namespace AppUI.Deck.Catalog
         private string _searchText = "";
         private string _activeSearch = "";
 
+        private Uri _focusedModImageSource;
+        private string _focusedModReleaseNotes;
+        private string _focusedModLink;
+
         private List<DeckLegendItem> _legendItems = new List<DeckLegendItem>();
 
         public DeckCatalogViewModel(CatalogViewModel catalog)
@@ -106,7 +110,54 @@ namespace AppUI.Deck.Catalog
                 NotifyPropertyChanged();
                 NotifyPropertyChanged(nameof(FocusedCatalogMod));
                 NotifyPropertyChanged(nameof(HasFocusedCatalogMod));
+                RefreshFocusedModDetails();
             }
+        }
+
+        public Uri FocusedModImageSource
+        {
+            get { return _focusedModImageSource; }
+            private set
+            {
+                _focusedModImageSource = value;
+                NotifyPropertyChanged();
+            }
+        }
+
+        public string FocusedModReleaseNotes
+        {
+            get { return _focusedModReleaseNotes; }
+            private set
+            {
+                _focusedModReleaseNotes = value;
+                NotifyPropertyChanged();
+            }
+        }
+
+        public string FocusedModLink
+        {
+            get { return _focusedModLink; }
+            private set
+            {
+                _focusedModLink = value;
+                NotifyPropertyChanged();
+            }
+        }
+
+        /// <summary>Same detail sources the desktop preview pane uses.</summary>
+        private void RefreshFocusedModDetails()
+        {
+            Mod mod = FocusedCatalogMod?.Mod;
+
+            FocusedModReleaseNotes = mod?.LatestVersion?.ReleaseNotes;
+            FocusedModLink = mod?.Link;
+
+            string imageUrl = mod?.LatestVersion?.PreviewImage;
+            string imagePath = string.IsNullOrWhiteSpace(imageUrl)
+                ? null
+                : Sys.ImageCache.GetImagePath(imageUrl, mod.ID); // non-blocking; downloads in the background if uncached
+
+            FocusedModImageSource = imagePath == null ? null : new Uri(imagePath);
         }
 
         public CatalogModItemViewModel FocusedCatalogMod
@@ -374,6 +425,24 @@ namespace AppUI.Deck.Catalog
         private void FocusCategoryColumn()
         {
             _focusedColumn = CatalogColumn.Categories;
+            NotifyColumnFocusChanged();
+        }
+
+        /// <summary>Mouse entry point: clicking a row moves internal focus to its column.</summary>
+        public void FocusColumnViaMouse(CatalogColumn column)
+        {
+            if (column == CatalogColumn.Mods && !_mods.Any())
+            {
+                return;
+            }
+
+            _focusedColumn = column;
+
+            if (column == CatalogColumn.Mods && FocusedModIndex < 0)
+            {
+                FocusedModIndex = 0;
+            }
+
             NotifyColumnFocusChanged();
         }
 

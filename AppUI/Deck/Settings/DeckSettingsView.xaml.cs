@@ -1,3 +1,4 @@
+using AppUI.Deck.Input;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -67,5 +68,31 @@ namespace AppUI.Deck.Settings
                 lstValues.ScrollIntoView(lstValues.SelectedItem);
             }
         }
+
+        #region Mouse support
+
+        private void lstSettings_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (lstSettings.SelectedItem is DeckSettingRowViewModel row)
+            {
+                (DataContext as DeckSettingsViewModel)?.ActivateRowViaMouse(row);
+            }
+        }
+
+        private void TogglePill_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (((FrameworkElement)sender).DataContext is DeckSettingRowViewModel row)
+            {
+                (DataContext as DeckSettingsViewModel)?.ActivateRowViaMouse(row);
+                e.Handled = true;
+            }
+        }
+
+        private void lstValues_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            (DataContext as DeckSettingsViewModel)?.HandleCommand(DeckCommand.Activate);
+        }
+
+        #endregion
     }
 }

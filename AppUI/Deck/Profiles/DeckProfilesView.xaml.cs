@@ -1,3 +1,4 @@
+using AppUI.Deck.Input;
 using System.Windows.Controls;
 
 namespace AppUI.Deck.Profiles
@@ -18,6 +19,11 @@ namespace AppUI.Deck.Profiles
             {
                 lstProfiles.ScrollIntoView(lstProfiles.SelectedItem);
             }
+        }
+
+        private void lstProfiles_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            (DataContext as DeckProfilesViewModel)?.HandleCommand(DeckCommand.Activate);
         }
     }
 }

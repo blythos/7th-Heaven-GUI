@@ -322,6 +322,20 @@ namespace AppUI.Deck.Settings
 
         #region Row interaction
 
+        /// <summary>Mouse entry point: focuses the clicked row and performs its primary action.</summary>
+        public void ActivateRowViaMouse(DeckSettingRowViewModel row)
+        {
+            int index = _rows.IndexOf(row);
+
+            if (index < 0 || row.IsHeader || IsTextOverlayOpen || IsValuePanelOpen)
+            {
+                return;
+            }
+
+            FocusedRowIndex = index;
+            ActivateFocusedRow();
+        }
+
         private void ActivateFocusedRow()
         {
             DeckSettingRowViewModel row = FocusedRow;
