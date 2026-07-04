@@ -142,7 +142,9 @@ namespace AppUI.Deck.Input
             RaiseOnPress(buttons, Buttons.Y, DeckCommand.OpenOptions);
             RaiseOnPress(buttons, Buttons.LeftShoulder, DeckCommand.SectionPrev);
             RaiseOnPress(buttons, Buttons.RightShoulder, DeckCommand.SectionNext);
-            RaiseOnPress(buttons, Buttons.Back, DeckCommand.Search);
+            // View/Select is Delete, not Search: catalog search already lives on Y
+            // (OpenOptions opens the overlay there), matching the legend
+            RaiseOnPress(buttons, Buttons.Back, DeckCommand.Delete);
 
             HandleStartButton(buttons);
             HandleDirections(state.Gamepad, buttons);

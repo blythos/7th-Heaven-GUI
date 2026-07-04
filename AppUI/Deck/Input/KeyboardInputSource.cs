@@ -21,6 +21,7 @@ namespace AppUI.Deck.Input
     ///   F             → Search (Y in catalog)
     ///   Q             → SectionPrev (LB)
     ///   E             → SectionNext (RB)
+    ///   Delete        → Delete (View/Select)
     ///   PageUp/PageDown → PageUp/PageDown (LT/RT)
     ///   P             → PlayShort on tap, PlayLong on hold (Menu short/long)
     /// </remarks>
@@ -46,6 +47,7 @@ namespace AppUI.Deck.Input
             { Key.E, DeckCommand.SectionNext },
             { Key.PageUp, DeckCommand.PageUp },
             { Key.PageDown, DeckCommand.PageDown },
+            { Key.Delete, DeckCommand.Delete },
         };
 
         private const Key PlayKey = Key.P;

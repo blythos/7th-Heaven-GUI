@@ -19,6 +19,8 @@ namespace AppUI.Deck.Input
         OpenOptions,
         Search,
         ReorderToggle,
+        /// <summary>Delete the focused item (uninstall a mod), behind a confirm.</summary>
+        Delete,
         PlayShort,
         PlayLong,
     }

@@ -669,6 +669,10 @@ namespace AppUI.Deck
                     OpenModOptions();
                     return true;
 
+                case DeckCommand.Delete:
+                    UninstallFocusedMod();
+                    return true;
+
                 case DeckCommand.PlayLong:
                     OpenPlayPicker();
                     return true;
@@ -812,6 +816,34 @@ namespace AppUI.Deck
             // reload replaced the collection; restore focus to the same row
             int count = Main.MyMods.ModList.Count;
             FocusedModIndex = Math.Max(0, Math.Min(count - 1, index));
+        }
+
+        /// <summary>
+        /// Uninstalls the focused mod after the same confirmation the desktop uninstall
+        /// button shows — rendered as the Deck-native modal, which blocks here until
+        /// answered. <see cref="MyModsViewModel.UninstallMod"/> reloads the list itself,
+        /// which also refreshes focus and the conflict badges.
+        /// </summary>
+        private void UninstallFocusedMod()
+        {
+            if (CurrentFocusArea != FocusArea.Content || CurrentSection != DeckSection.MyMods || FocusedMod == null)
+            {
+                return;
+            }
+
+            InstalledModViewModel mod = FocusedMod;
+
+            var confirmation = AppUI.Windows.MessageDialogWindow.Show(
+                $"{ResourceHelper.Get(AppCore.StringKey.AreYouSureYouWantToDelete)} {mod.Name}?",
+                ResourceHelper.Get(AppCore.StringKey.UninstallWarning),
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning);
+
+            if (confirmation.Result == System.Windows.MessageBoxResult.Yes)
+            {
+                Logger.Info($"Deck mode: uninstalling {mod.Name}");
+                Main.MyMods.UninstallMod(mod);
+            }
         }
 
         #region Mod options screen
@@ -1148,6 +1180,7 @@ namespace AppUI.Deck
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Toggle mod"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Reorder, "Reorder"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Options, "Options"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Delete, "Uninstall"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Back"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Sections, "Section"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Play, "Play (hold: change mode)"));

@@ -29,7 +29,7 @@ drives the same logical command layer the keyboard does.
 | LT | Page Up | Page up |
 | RT | Page Down | Page down |
 | Menu/Start | P (held while pressed) | Play; the app times the hold for the variant picker |
-| View/Select | Esc | Back |
+| View/Select | Delete | Uninstall focused mod (Installed mods), behind a confirm |
 | Right trackpad | Mouse + left click | The UI has full mouse support |
 | Back grips (L4/L5/R4/R5 lower pair) | Switch to "Game" set | See "Switching" below |
 

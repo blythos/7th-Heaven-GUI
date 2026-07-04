@@ -297,7 +297,7 @@
 					{
 						"bindings"
 						{
-							"binding"		"key_press ESCAPE, , "
+							"binding"		"key_press DELETE, , "
 						}
 					}
 				}

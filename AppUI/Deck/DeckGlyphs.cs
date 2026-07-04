@@ -18,6 +18,7 @@ namespace AppUI.Deck
         Reorder,
         Options,
         Search,
+        Delete,
         Sections,
         Pages,
         Play,
@@ -67,6 +68,7 @@ namespace AppUI.Deck
                 case DeckLegendInput.Reorder: return Input.DeckCommand.ReorderToggle;
                 case DeckLegendInput.Options: return Input.DeckCommand.OpenOptions;
                 case DeckLegendInput.Search: return Input.DeckCommand.Search;
+                case DeckLegendInput.Delete: return Input.DeckCommand.Delete;
                 case DeckLegendInput.Play: return Input.DeckCommand.PlayShort;
                 default: return null;
             }
@@ -85,6 +87,7 @@ namespace AppUI.Deck
                     case DeckLegendInput.Reorder: return "R";
                     case DeckLegendInput.Options: return "O";
                     case DeckLegendInput.Search: return "F";
+                    case DeckLegendInput.Delete: return "Del";
                     case DeckLegendInput.Sections: return "Q E";
                     case DeckLegendInput.Pages: return "PgUp PgDn";
                     case DeckLegendInput.Play: return "P";
@@ -101,6 +104,7 @@ namespace AppUI.Deck
                     case DeckLegendInput.Reorder: return "X";
                     case DeckLegendInput.Options: return "Y";
                     case DeckLegendInput.Search: return "Y";
+                    case DeckLegendInput.Delete: return "View";
                     case DeckLegendInput.Sections: return "LB RB";
                     case DeckLegendInput.Pages: return "LT RT";
                     case DeckLegendInput.Play: return "☰";
