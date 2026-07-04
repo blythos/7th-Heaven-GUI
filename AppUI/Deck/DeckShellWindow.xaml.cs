@@ -25,20 +25,26 @@ namespace AppUI.Deck
 
         public DeckShellWindow()
         {
-            // Focus accent for all Deck surfaces: a fixed app-level resource for now
-            // (single accent across light/dark), deliberately not an ITheme property —
-            // flagged for a later decision.
-            App.Current.Resources["DeckAccentColor"] = System.Windows.Media.Color.FromRgb(0x2F, 0xBF, 0x71);
-            App.Current.Resources["DeckAccentBrush"] = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2F, 0xBF, 0x71));
-
-            // structural panel border (used for the FF7 theme's bevel; invisible otherwise)
-            App.Current.Resources["DeckPanelBorderBrush"] = System.Windows.Media.Brushes.Transparent;
-            App.Current.Resources["DeckPanelBorderThickness"] = new Thickness(0);
+            ResetDeckThemeExtras();
 
             // amber for the load-order conflict badge and detail block (dark text on top)
             App.Current.Resources["DeckWarningBrush"] = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE0, 0xA9, 0x3E));
 
             InitializeComponent();
+        }
+
+        /// <summary>
+        /// The Deck-specific resources the flat themes use. Focus accent is a fixed
+        /// app-level resource for now (single accent across light/dark), deliberately
+        /// not an ITheme property — flagged for a later decision. The panel border is
+        /// invisible outside the FF7 theme.
+        /// </summary>
+        private static void ResetDeckThemeExtras()
+        {
+            App.Current.Resources["DeckAccentColor"] = System.Windows.Media.Color.FromRgb(0x2F, 0xBF, 0x71);
+            App.Current.Resources["DeckAccentBrush"] = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2F, 0xBF, 0x71));
+            App.Current.Resources["DeckPanelBorderBrush"] = System.Windows.Media.Brushes.Transparent;
+            App.Current.Resources["DeckPanelBorderThickness"] = new Thickness(0);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -49,10 +55,15 @@ namespace AppUI.Deck
             _mainViewModel = new MainWindowViewModel();
             _mainViewModel.InitViewModel();
 
-            // InitViewModel applied the saved desktop theme; Deck mode always uses its own.
-            // (To preview the FF7 theme: apply AppTheme.DeckFF7 and call ApplyFF7ThemeExtras
-            // instead — becomes a proper Settings choice when Deck theme switching lands.)
-            new ThemeSettingsViewModel(loadThemeXml: false).ApplyBuiltInTheme(AppTheme.DeckDark);
+            // InitViewModel applied the saved desktop theme; Deck mode uses its own,
+            // chosen in Settings -> Appearance and persisted in deck.json
+            ApplyDeckTheme();
+            ApplyUiScale();
+
+            DeckPreferences.ThemeChanged += ApplyDeckTheme;
+            DeckPreferences.UiScaleChanged += ApplyUiScale;
+            DeckPreferences.GlyphBrandChanged += ApplyGlyphBrand;
+            ApplyGlyphBrand();
 
             ViewModel = new DeckShellViewModel(_mainViewModel);
             DataContext = ViewModel;
@@ -83,6 +94,48 @@ namespace AppUI.Deck
             Logger.Info("Deck mode: shell ready");
         }
 
+        private void ApplyDeckTheme()
+        {
+            AppTheme theme;
+
+            switch (DeckPreferences.Theme)
+            {
+                case DeckPreferences.ThemeLight: theme = AppTheme.DeckLight; break;
+                case DeckPreferences.ThemeFF7: theme = AppTheme.DeckFF7; break;
+                default: theme = AppTheme.DeckDark; break;
+            }
+
+            Logger.Info($"Deck mode: applying theme {theme}");
+
+            // rewrites all the shared brush keys, which also undoes the FF7 gradient fills
+            new ThemeSettingsViewModel(loadThemeXml: false).ApplyBuiltInTheme(theme);
+
+            if (theme == AppTheme.DeckFF7)
+            {
+                ApplyFF7ThemeExtras();
+            }
+            else
+            {
+                ResetDeckThemeExtras();
+            }
+        }
+
+        private void ApplyUiScale()
+        {
+            rootScale.ScaleX = DeckPreferences.UiScale;
+            rootScale.ScaleY = DeckPreferences.UiScale;
+        }
+
+        private void ApplyGlyphBrand()
+        {
+            switch (DeckPreferences.GlyphBrand)
+            {
+                case "PlayStation": DeckGlyphs.SetPadSet(DeckGlyphSet.PlayStation); break;
+                case "Nintendo": DeckGlyphs.SetPadSet(DeckGlyphSet.Nintendo); break;
+                default: DeckGlyphs.SetPadSet(DeckGlyphSet.Xbox); break;
+            }
+        }
+
         /// <summary>
         /// The FF7 look beyond the flat ITheme palette: vertical blue gradient fills
         /// (like the game's menu boxes) for rows and panels, and a silver bevel-style
@@ -107,18 +160,20 @@ namespace AppUI.Deck
             App.Current.Resources["PrimaryControlBackground"] = boxFill;
             App.Current.Resources["SecondaryAppBackground"] = boxFill;
 
+            // brighter top, darker bottom and a thicker stroke than the first pass,
+            // which read as flat grey on the small screen
             var bevel = new System.Windows.Media.LinearGradientBrush(
                 new System.Windows.Media.GradientStopCollection()
                 {
-                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0xE6, 0xE6, 0xEE), 0.0),
-                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x9A, 0x9A, 0xA8), 0.5),
-                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x5A, 0x5A, 0x68), 1.0),
+                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0xFA, 0xFA, 0xFF), 0.0),
+                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0xB0, 0xB0, 0xC4), 0.45),
+                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x2E, 0x2E, 0x40), 1.0),
                 },
                 90);
             bevel.Freeze();
 
             App.Current.Resources["DeckPanelBorderBrush"] = bevel;
-            App.Current.Resources["DeckPanelBorderThickness"] = new Thickness(2);
+            App.Current.Resources["DeckPanelBorderThickness"] = new Thickness(3);
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
@@ -135,6 +190,9 @@ namespace AppUI.Deck
         protected override void OnClosing(CancelEventArgs e)
         {
             base.OnClosing(e);
+            DeckPreferences.ThemeChanged -= ApplyDeckTheme;
+            DeckPreferences.UiScaleChanged -= ApplyUiScale;
+            DeckPreferences.GlyphBrandChanged -= ApplyGlyphBrand;
             Dialogs.DeckDialogService.Detach();
             _keyboardSource?.Detach();
             _controllerSource?.Dispose();

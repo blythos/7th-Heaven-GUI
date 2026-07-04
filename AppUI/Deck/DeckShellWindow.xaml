@@ -31,10 +31,10 @@
     </Window.Resources>
 
     <Grid>
-        <!-- one knob for overall UI size: the Deck's 1280x800 7" panel needs larger
-             targets than a desktop monitor. Candidate for a Settings row later. -->
+        <!-- one knob for overall UI size (Settings -> Appearance -> UI scale);
+             the Deck's 1280x800 7" panel needs larger targets than a desktop monitor -->
         <Grid.LayoutTransform>
-            <ScaleTransform ScaleX="1.25" ScaleY="1.25"/>
+            <ScaleTransform x:Name="rootScale" ScaleX="1.25" ScaleY="1.25"/>
         </Grid.LayoutTransform>
 
         <Grid>

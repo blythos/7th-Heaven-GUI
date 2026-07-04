@@ -271,7 +271,7 @@ namespace AppUI.Deck.Input
 
         private void Raise(DeckCommand command)
         {
-            DeckGlyphs.SetCurrentSet(DeckGlyphSet.Xbox);
+            DeckGlyphs.SetCurrentSet(DeckGlyphs.PadSet); // brand comes from the Settings override
             CommandRaised?.Invoke(command);
         }
     }

@@ -6,6 +6,8 @@ namespace AppUI.Deck
     {
         Keyboard,
         Xbox,
+        PlayStation,
+        Nintendo,
     }
 
     /// <summary>Logical inputs the legend can reference; glyph text depends on the active set.</summary>
@@ -33,6 +35,10 @@ namespace AppUI.Deck
     {
         public static DeckGlyphSet CurrentSet { get; private set; } = DeckGlyphSet.Keyboard;
 
+        /// <summary>The pad glyph set a controller source reports (the manual
+        /// Xbox/PlayStation/Nintendo override from Settings; Xbox by default).</summary>
+        public static DeckGlyphSet PadSet { get; private set; } = DeckGlyphSet.Xbox;
+
         /// <summary>Raised when the active glyph set changes so legends can rebuild.</summary>
         public static event Action GlyphSetChanged;
 
@@ -44,6 +50,18 @@ namespace AppUI.Deck
             {
                 CurrentSet = set;
                 GlyphSetChanged?.Invoke();
+            }
+        }
+
+        /// <summary>Applies the glyph brand override; refreshes legends live when a pad
+        /// set is currently showing.</summary>
+        public static void SetPadSet(DeckGlyphSet set)
+        {
+            PadSet = set;
+
+            if (CurrentSet != DeckGlyphSet.Keyboard)
+            {
+                SetCurrentSet(set);
             }
         }
 
@@ -91,6 +109,42 @@ namespace AppUI.Deck
                     case DeckLegendInput.Sections: return "Q E";
                     case DeckLegendInput.Pages: return "PgUp PgDn";
                     case DeckLegendInput.Play: return "P";
+                }
+            }
+            else if (CurrentSet == DeckGlyphSet.PlayStation)
+            {
+                switch (input)
+                {
+                    case DeckLegendInput.Move: return "↑↓";
+                    case DeckLegendInput.LeftRight: return "◄►";
+                    case DeckLegendInput.Activate: return "✕";
+                    case DeckLegendInput.Back: return "○";
+                    case DeckLegendInput.Reorder: return "□";
+                    case DeckLegendInput.Options: return "△";
+                    case DeckLegendInput.Search: return "△";
+                    case DeckLegendInput.Delete: return "Share";
+                    case DeckLegendInput.Sections: return "L1 R1";
+                    case DeckLegendInput.Pages: return "L2 R2";
+                    case DeckLegendInput.Play: return "☰";
+                }
+            }
+            else if (CurrentSet == DeckGlyphSet.Nintendo)
+            {
+                // Nintendo letters sit in different physical positions: Xbox X/Y
+                // positions carry Nintendo's Y/X labels
+                switch (input)
+                {
+                    case DeckLegendInput.Move: return "↑↓";
+                    case DeckLegendInput.LeftRight: return "◄►";
+                    case DeckLegendInput.Activate: return "A";
+                    case DeckLegendInput.Back: return "B";
+                    case DeckLegendInput.Reorder: return "Y";
+                    case DeckLegendInput.Options: return "X";
+                    case DeckLegendInput.Search: return "X";
+                    case DeckLegendInput.Delete: return "−";
+                    case DeckLegendInput.Sections: return "L R";
+                    case DeckLegendInput.Pages: return "ZL ZR";
+                    case DeckLegendInput.Play: return "+";
                 }
             }
             else

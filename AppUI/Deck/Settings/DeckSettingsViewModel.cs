@@ -608,6 +608,7 @@ namespace AppUI.Deck.Settings
             {
                 DeckSettingRowViewModel.Action("Game driver", "Graphics, controls, cheats and advanced FFNx settings", OpenGameDriver),
                 DeckSettingRowViewModel.Action("General", "App behaviour, update channels and library options", OpenGeneral),
+                DeckSettingRowViewModel.Action("Appearance", "Theme, UI scale and controller button glyphs", OpenAppearance),
                 DeckSettingRowViewModel.Action("Catalog subscriptions", "Add, remove and prioritise the mod catalogs behind Browse catalog", OpenSubscriptions),
                 DeckSettingRowViewModel.Action("Quit 7th Heaven", "Exit the app", () => _onQuitRequested?.Invoke()),
             };
@@ -630,6 +631,12 @@ namespace AppUI.Deck.Settings
         {
             Logger.Info("Deck mode: opened general settings");
             PushLevel("General", DeckGeneralSettingsAdapter.BuildRows());
+        }
+
+        private void OpenAppearance()
+        {
+            Logger.Info("Deck mode: opened appearance settings");
+            PushLevel("Appearance", DeckAppearanceAdapter.BuildRows());
         }
 
         #region Catalog subscriptions
