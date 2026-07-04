@@ -1,57 +1,28 @@
-![License](https://img.shields.io/github/license/tsunamods-codes/7th-Heaven) ![Overall Downloads](https://img.shields.io/github/downloads/tsunamods-codes/7th-Heaven/total?label=Overall%20Downloads) ![Latest Stable Downloads](https://img.shields.io/github/downloads/tsunamods-codes/7th-Heaven/latest/total?label=Latest%20Stable%20Downloads&sort=semver) ![Latest Canary Downloads](https://img.shields.io/github/downloads/tsunamods-codes/7th-Heaven/canary/total?label=Latest%20Canary%20Downloads) ![GitHub Actions Workflow Status](https://github.com/tsunamods-codes/7th-Heaven/actions/workflows/main-4.5.2.yml/badge.svg?branch=master)
+# 7th Heaven — Deck controller UI fork
 
-<div align="center">
-  <img src="https://github.com/tsunamods-codes/7th-Heaven/blob/master/.logo/app.png" alt="">
-  <br><small>7th Heaven is now officially part of the <a href="https://www.tsunamods.com/">Tsunamods</a> initiative!</small>
-</div>
+A fork of [tsunamods-codes/7th-Heaven](https://github.com/tsunamods-codes/7th-Heaven),
+the mod manager for Final Fantasy VII PC, adding an experimental **controller-first
+fullscreen mode ("Deck mode") for the Steam Deck**, launched with the `--deck` flag.
 
-# 7th Heaven
+This is a personal project and is not affiliated with or endorsed by the Tsunamods team.
+The stock desktop UI is unchanged; Deck mode is an additive layer over the same
+ViewModels and engine, and the app remains Windows-only WPF, running on the Deck via
+Proton (set up by [MateriaForge](https://github.com/dotaxis/MateriaForge-rs), which this
+fork overlays but never modifies).
 
-Mod manager for Final Fantasy VII PC.
+- [SPEC.md](SPEC.md) — the full Deck mode design
+- [CLAUDE.md](CLAUDE.md) — codebase guide and verified ViewModel shapes
+- [deck-deploy/](deck-deploy/README.md) — deploying the fork onto a Steam Deck
 
-> **About this fork:** this fork adds an experimental controller-first fullscreen mode
-> ("Deck mode") for the Steam Deck, launched with the `--deck` flag. It is a personal
-> project and is not affiliated with or endorsed by the Tsunamods team. The stock desktop
-> UI is unchanged. See [SPEC.md](SPEC.md) for the design.
+## Building
 
-## Introduction
-
-This is a fork of the original [7th Heaven 2.x](https://github.com/unab0mb/7h) release, maintained now by the Tsunamods team.
-
-## Download
-
-- [Latest stable release](https://github.com/tsunamods-codes/7th-Heaven/releases/latest)
-- [Latest canary release](https://github.com/tsunamods-codes/7th-Heaven/releases/tag/canary)
-
-## Build
-
-### Visual Studio
-
-0. Download the the latest [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/) installer
-1. Run the installer and import this [.vsconfig](.vsconfig) file in the installer to pick the required components to build this project
-2. Open the Visual Studio Developer Command Prompt and run the following command: `vcpkg integrate install`
-3. Once installed, open the file [`7thHeaven.sln`](7thHeaven.sln) in Visual Studio and click the build button
-
-### Visual Studio Code (Using Extension in Preview)
-
-0. Make sure to have done the first two steps of **Visual Studio** section
-1. Open VS Code and install the extension [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit) (this will also install other dependent extensions)
-2. Open the 7thHeaven folder and there will be a new tab in **Explorer**, called **Solution Explorer**, that contains a similar project explorer of Visual Studio
-3. Build: right click on the solution **AppUI** and click on `Build`. Otherwise, run `dotnet build 7thHeaven.sln /target:AppUI`
-4. Run: `dotnet run --project AppUI`
-5. Debug: right click on the solution **AppUI** and click `Debug->Start New Instance`
-
-## Special thanks
-
-The .NET 7 migration would not have been possibile without the help of these people. The order is purely Alphabetical.
-
-These people are:
-
-- [Benjamin Moir](https://github.com/DaZombieKiller):
-  - For figuring out various .NET internals
-  - For the Detours examples and logics to be used in C#
-  - For the patience to guide through nitty gritty low level details
+Same as upstream: Visual Studio with the workloads in [.vsconfig](.vsconfig) (plus
+`vcpkg integrate install`), then build [`7thHeaven.sln`](7thHeaven.sln); or
+`dotnet build 7thHeaven.sln -c Debug`. Run the built `AppUI` exe for the stock UI, or
+with `--deck` for Deck mode.
 
 ## License
 
-See [LICENSE.txt](LICENSE.txt)
+See [LICENSE.txt](LICENSE.txt). Upstream credits and history: the
+[original 7th Heaven 2.x](https://github.com/unab0mb/7h) and the
+[Tsunamods 7th Heaven repository](https://github.com/tsunamods-codes/7th-Heaven).
