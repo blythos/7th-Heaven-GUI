@@ -1,6 +1,10 @@
 # Normalize line endings to CRLF on checkout (Windows project)
 * text=auto eol=crlf
 
+# Shell scripts run on the Steam Deck must stay LF everywhere, or bash
+# rejects them after checkout/transfer
+deck-deploy/*.sh text eol=lf
+
 # Explicitly binary — no line ending conversion
 *.png binary
 *.tga binary
