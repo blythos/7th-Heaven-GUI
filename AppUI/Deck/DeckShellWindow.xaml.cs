@@ -68,6 +68,9 @@ namespace AppUI.Deck
             _controllerSource = new ControllerInputSource();
             _router.AddSource(_controllerSource);
 
+            // from here on, MessageDialogWindow.Show renders as the in-shell Deck modal
+            Dialogs.DeckDialogService.Attach(ViewModel.DialogHost, _router);
+
             // free-text fields (catalog search) need raw keys to reach the TextBox
             ViewModel.PropertyChanged += (s, args) =>
             {
@@ -132,6 +135,7 @@ namespace AppUI.Deck
         protected override void OnClosing(CancelEventArgs e)
         {
             base.OnClosing(e);
+            Dialogs.DeckDialogService.Detach();
             _keyboardSource?.Detach();
             _controllerSource?.Dispose();
         }

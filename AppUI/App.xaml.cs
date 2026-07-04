@@ -64,6 +64,7 @@ namespace AppUI
                 // StartupUri declared in App.xaml; all other startup runs unchanged.
                 if (e.Args.Any(a => a.Equals("--deck", StringComparison.OrdinalIgnoreCase)))
                 {
+                    Deck.DeckContext.IsActive = true; // reroutes MessageDialogWindow to the Deck dialog
                     StartupUri = new Uri("Deck/DeckShellWindow.xaml", UriKind.Relative);
                 }
             }

@@ -66,6 +66,9 @@ namespace AppUI.Deck
 
         public MainWindowViewModel Main { get; }
 
+        /// <summary>Slot for the Deck-native modal dialogs (see <see cref="Dialogs.DeckDialogService"/>).</summary>
+        public Dialogs.DeckDialogHostViewModel DialogHost { get; } = new Dialogs.DeckDialogHostViewModel();
+
         public Catalog.DeckCatalogViewModel CatalogSection { get; }
 
         public Profiles.DeckProfilesViewModel ProfilesSection { get; }

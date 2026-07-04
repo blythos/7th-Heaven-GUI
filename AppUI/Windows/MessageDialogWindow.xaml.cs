@@ -132,6 +132,15 @@ namespace AppUI.Windows
         {
             return App.Current.Dispatcher.Invoke(() =>
             {
+                // Deck mode: a real modal window is unreachable by controller (the Deck
+                // input layer raises logical commands, not system keystrokes), so route
+                // to the in-shell dialog instead. Falls back to the desktop window if
+                // the Deck shell is not up yet. Desktop behaviour is unchanged.
+                if (Deck.DeckContext.IsActive && Deck.Dialogs.DeckDialogService.CanShow)
+                {
+                    return Deck.Dialogs.DeckDialogService.Show(windowTitle, prompt, null, buttons);
+                }
+
                 MessageDialogWindow window = new MessageDialogWindow(windowTitle, prompt, buttons, image);
                 window.ShowDialog();
 
@@ -143,6 +152,12 @@ namespace AppUI.Windows
         {
             return App.Current.Dispatcher.Invoke(() =>
             {
+                // Deck mode: see the overload above
+                if (Deck.DeckContext.IsActive && Deck.Dialogs.DeckDialogService.CanShow)
+                {
+                    return Deck.Dialogs.DeckDialogService.Show(windowTitle, prompt, details, buttons);
+                }
+
                 MessageDialogWindow window = new MessageDialogWindow(windowTitle, prompt, details, buttons, image);
                 window.ShowDialog();
 
