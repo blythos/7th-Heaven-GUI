@@ -425,16 +425,53 @@ A small shell script under `/deck-deploy/` that:
    passes `--deck`.
 
 **Steam Input layout (Deck-only, must be resolved).** MateriaForge/7thDeck install a
-*desktop/trackpad-as-mouse* controller config for 7th Heaven. A controller-first UI needs
-gamepad input. Since navigation is keyboard-first, the clean solution is a **Steam Input
-layout that emits keystrokes** (d-pad→arrows, A→Enter, B→Esc, X/Y/L1/R1/L2/R2/Menu→their
-mapped keys). Ship/document this layout as part of deployment. Do **not** silently rely on
+*desktop/trackpad-as-mouse* controller config for 7th Heaven; a controller-first UI needs
+gamepad input instead. But a single flat "every button is a keystroke" layout for the whole
+session is **wrong**: FF7 launches as a **child process of the same Steam entry** (not a
+separate Steam app), and 7th Heaven already has its own working in-game controller system —
+`GameController.cs` (DirectInput polling), `ControllerInterceptor.cs` (maps buttons FF7
+doesn't natively support into keyboard input it does understand), and
+`DS4ControllerService.cs` — all started by `GameLauncher` at launch and stopped on exit.
+That existing system needs to see the **raw physical device**. With a keystroke-only layout
+active for the whole session, Steam Input has already turned the controller into a keyboard
+as far as anything downstream can tell by the time the game starts, and FF7's own controller
+input silently breaks.
+
+Ship **two Steam Input action sets**, not one:
+
+- **"Launcher"** — buttons → keystrokes matching the keyboard command layer (d-pad→arrows,
+  A→Enter, B→Esc, X/Y/L1/R1/L2/R2/Menu→their mapped keys). Active while Deck mode's own UI
+  has focus.
+- **"Game"** — buttons → standard gamepad passthrough (or Steam Input disabled for this set
+  entirely), so the raw controller reaches 7th Heaven's existing injection code exactly as
+  it does on Windows today. Active once FF7 has launched.
+
+Switching between them: the clean mechanism is `ISteamInput::ActivateActionSet`, called by
+the app itself right before spawning FF7.exe and again on return. This requires linking the
+Steamworks SDK, which promotes that part of the existing Steamworks stretch goal (see "Text
+input / on-screen keyboard") from deferred to load-bearing for a smooth on-Deck experience.
+If the Steamworks integration isn't ready yet, the fallback is shipping both action sets in
+the layout anyway and documenting manual switching via the Steam overlay when going from
+launcher to game and back — clunky, but functional, and worth having as the interim state
+rather than a layout that silently breaks gameplay input. Do **not** silently rely on
 MateriaForge's default mouse config — it is the opposite of what Deck mode needs.
 
 **Prefix/runtime compatibility.** The overlay assumes the fork runs in the same Proton
 prefix + .NET runtime MateriaForge provisioned for the stock build. Keep the fork's target
 framework and dependency set aligned with the stock build; re-verify on-Deck after any
-dependency change.
+dependency change. **Do not assume the prefix needs the x86 (or x64) .NET runtime
+specifically** — nothing in the code pins a bitness. Checked, not assumed: the official
+release CI builds `Platform="Any CPU"` (`.github/workflows/main-4.5.2.yml`), and no
+`Prefer32Bit` is set anywhere in the solution, so neither the stock build nor this fork's
+overlay is pinned to a specific bitness by the code itself. Verify which bitness the
+MateriaForge-provisioned prefix actually has, and if the overlay build won't launch, check
+for a runtime-bitness mismatch **before** assuming a code or deployment bug. This is a
+real, recurring Proton/Wine gotcha: `winetricks`/`protontricks` .NET installers frequently
+put only the 32-bit runtime into a 64-bit prefix by default, and an app that actually needs
+the 64-bit runtime then fails to detect .NET as installed at all, even though something was
+installed. Since MateriaForge already gets stock 7th Heaven running today, it has presumably
+solved this for whichever bitness stock 7th Heaven needs — but that shouldn't be assumed
+without checking.
 
 **Early spike, before relying on the overlay**: verify MateriaForge does not do
 integrity/hash checking that would "self-heal" by re-downloading stock files over the

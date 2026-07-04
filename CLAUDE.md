@@ -136,8 +136,17 @@ in `AppUI`.
   do the launch work — drive `GameLauncher`/`GameLaunchViewModel` instead.
 - Settings are **batch-saved**, not live-apply.
 - The mod list/reorder lives in **`MyModsViewModel`**, not `MainWindowViewModel`.
-- On the Deck, MateriaForge's default controller config is **trackpad-as-mouse** — Deck mode
-  needs a gamepad/keystroke Steam Input layout instead.
+- On the Deck, MateriaForge's default controller config is **trackpad-as-mouse**. The fix is
+  **two Steam Input action sets**, not one flat keystroke layout: "Launcher" (buttons →
+  keystrokes for the Deck UI) and "Game" (gamepad passthrough). FF7 runs as a child process
+  of the same Steam entry, and the existing in-game controller code needs the raw device —
+  a session-wide keystroke layout silently breaks gameplay input. Switch via
+  `ISteamInput::ActivateActionSet` (manual switching via the Steam overlay is the fallback).
+  Full reasoning: `SPEC.md` → "Deck deployment".
+- Don't assume the Deck's Proton prefix needs the **x86** .NET runtime — the code pins no
+  bitness (release CI builds `Any CPU`; no `Prefer32Bit` anywhere). Verify the prefix's
+  actual bitness; an overlay build that won't launch may be a 32/64-bit runtime mismatch,
+  not a code or deployment bug. See `SPEC.md` → "Deck deployment".
 
 ## Git
 
