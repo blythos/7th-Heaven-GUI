@@ -35,6 +35,9 @@ namespace AppUI.Deck
             App.Current.Resources["DeckPanelBorderBrush"] = System.Windows.Media.Brushes.Transparent;
             App.Current.Resources["DeckPanelBorderThickness"] = new Thickness(0);
 
+            // amber for the load-order conflict badge and detail block (dark text on top)
+            App.Current.Resources["DeckWarningBrush"] = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE0, 0xA9, 0x3E));
+
             InitializeComponent();
         }
 

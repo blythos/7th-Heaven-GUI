@@ -37,6 +37,8 @@ namespace AppUI.Deck
         private Uri _focusedModImageSource;
         private string _focusedModReleaseNotes;
         private string _focusedModLink;
+        private string _focusedModConflictText;
+        private Dictionary<Guid, List<string>> _loadOrderConflicts = new Dictionary<Guid, List<string>>();
         private List<DeckLegendItem> _legendItems = new List<DeckLegendItem>();
 
         private bool _isLaunching;
@@ -191,6 +193,8 @@ namespace AppUI.Deck
         /// </summary>
         public void OnDataReady()
         {
+            RefreshLoadOrderConflicts();
+
             if (Main.MyMods.ModList.Any() && FocusedModIndex < 0)
             {
                 FocusedModIndex = 0;
@@ -319,6 +323,31 @@ namespace AppUI.Deck
             private set
             {
                 _focusedModLink = value;
+                NotifyPropertyChanged();
+            }
+        }
+
+        /// <summary>Load-order conflict lines for the focused mod, or null when clean.</summary>
+        public string FocusedModConflictText
+        {
+            get { return _focusedModConflictText; }
+            private set
+            {
+                _focusedModConflictText = value;
+                NotifyPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// Conflict messages keyed by mod id (see <see cref="DeckLoadOrderConflicts"/>).
+        /// Replaced wholesale on each recompute so the row badges re-evaluate.
+        /// </summary>
+        public Dictionary<Guid, List<string>> LoadOrderConflicts
+        {
+            get { return _loadOrderConflicts; }
+            private set
+            {
+                _loadOrderConflicts = value;
                 NotifyPropertyChanged();
             }
         }
@@ -962,10 +991,19 @@ namespace AppUI.Deck
         {
             if (e.PropertyName == nameof(MyModsViewModel.ModList))
             {
+                // every order/activation change replaces the collection, so this also
+                // keeps the conflict badges live (including while a row is lifted)
+                RefreshLoadOrderConflicts();
+
                 // collection instance was replaced (reload); keep focus index in range
                 int count = Main.MyMods.ModList.Count;
                 FocusedModIndex = count == 0 ? -1 : Math.Max(0, Math.Min(count - 1, FocusedModIndex));
             }
+        }
+
+        private void RefreshLoadOrderConflicts()
+        {
+            LoadOrderConflicts = DeckLoadOrderConflicts.FindConflicts();
         }
 
         private void RefreshFocusedMod()
@@ -988,6 +1026,11 @@ namespace AppUI.Deck
                 : Sys.ImageCache.GetImagePath(imageUrl, details.ID); // non-blocking; downloads in the background if uncached
 
             FocusedModImageSource = imagePath == null ? null : new Uri(imagePath);
+
+            FocusedModConflictText =
+                (FocusedMod != null && _loadOrderConflicts.TryGetValue(FocusedMod.InstallInfo.ModID, out List<string> conflictLines))
+                    ? string.Join("\n", conflictLines)
+                    : null;
         }
 
         /// <summary>Mouse entry point: clicking a top-bar tab switches to that section.</summary>

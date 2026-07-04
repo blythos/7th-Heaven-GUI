@@ -16,6 +16,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <deck:NullOrEmptyToVisibilityConverter x:Key="NullOrEmptyToCollapsed"/>
+        <deck:DeckConflictVisibilityConverter x:Key="ConflictToVisible"/>
 
         <Style x:Key="DeckBodyText" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource PrimaryControlForeground}"/>
@@ -225,12 +226,28 @@
                                     </TextBlock>
                                 </StackPanel>
 
-                                <Border Grid.Column="2" CornerRadius="10" Padding="10,3"
-                                        VerticalAlignment="Center"
-                                        Background="{DynamicResource PrimaryAppBackground}">
-                                    <TextBlock Text="{Binding Category}" FontSize="12"
-                                               Foreground="{DynamicResource PrimaryControlSecondary}"/>
-                                </Border>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- load-order conflict badge; detail shows in the right pane -->
+                                    <Border CornerRadius="10" Padding="10,3" Margin="0,0,8,0"
+                                            VerticalAlignment="Center"
+                                            Background="{DynamicResource DeckWarningBrush}">
+                                        <Border.Visibility>
+                                            <MultiBinding Converter="{StaticResource ConflictToVisible}">
+                                                <Binding Path="InstallInfo.ModID"/>
+                                                <Binding Path="DataContext.LoadOrderConflicts" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                            </MultiBinding>
+                                        </Border.Visibility>
+                                        <TextBlock Text="⚠ Load order" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="#1A1A18"/>
+                                    </Border>
+
+                                    <Border CornerRadius="10" Padding="10,3"
+                                            VerticalAlignment="Center"
+                                            Background="{DynamicResource PrimaryAppBackground}">
+                                        <TextBlock Text="{Binding Category}" FontSize="12"
+                                                   Foreground="{DynamicResource PrimaryControlSecondary}"/>
+                                    </Border>
+                                </StackPanel>
                             </Grid>
                             <DataTemplate.Triggers>
                                 <DataTrigger Binding="{Binding IsActive}" Value="True">
@@ -267,6 +284,19 @@
                                     </Style>
                                 </TextBlock.Style>
                             </TextBlock>
+
+                            <!-- load-order conflict detail (matches the row badge) -->
+                            <Border Background="{DynamicResource DeckWarningBrush}"
+                                    CornerRadius="6" Padding="14,10" Margin="0,0,0,16"
+                                    Visibility="{Binding FocusedModConflictText, Converter={StaticResource NullOrEmptyToCollapsed}}">
+                                <StackPanel>
+                                    <TextBlock Text="Load order conflict" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="#1A1A18"/>
+                                    <TextBlock Text="{Binding FocusedModConflictText}"
+                                               FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0"
+                                               Foreground="#1A1A18"/>
+                                </StackPanel>
+                            </Border>
 
                             <TextBlock Text="Author" Style="{StaticResource DeckSecondaryText}"/>
                             <TextBlock Text="{Binding FocusedMod.Author}" Style="{StaticResource DeckBodyText}" Margin="0,2,0,12" TextWrapping="Wrap"/>
