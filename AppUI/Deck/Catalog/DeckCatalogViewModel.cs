@@ -549,20 +549,28 @@ namespace AppUI.Deck.Catalog
         /// </summary>
         private void RefreshFromCatalog()
         {
-            string previousCategory = (_focusedCategoryIndex >= 0 && _focusedCategoryIndex < _categories.Count)
-                ? _categories[_focusedCategoryIndex].Name
+            DeckCatalogCategoryViewModel previousSelection = (_focusedCategoryIndex >= 0 && _focusedCategoryIndex < _categories.Count)
+                ? _categories[_focusedCategoryIndex]
                 : null;
 
             _allMods = _catalog.CatalogModList.ToList();
 
-            Categories = _allMods.GroupBy(m => m.Category)
-                                 .OrderBy(g => g.Key)
-                                 .Select(g => new DeckCatalogCategoryViewModel(g.Key, g.Count()))
-                                 .ToList();
+            // synthetic "All" first, then the real categories from the catalog
+            Categories = new[] { new DeckCatalogCategoryViewModel("All", _allMods.Count, isAll: true) }
+                .Concat(_allMods.GroupBy(m => m.Category)
+                                .OrderBy(g => g.Key)
+                                .Select(g => new DeckCatalogCategoryViewModel(g.Key, g.Count())))
+                .ToList();
 
-            int restoredIndex = previousCategory != null
-                ? Categories.FindIndex(c => c.Name == previousCategory)
-                : -1;
+            // restore by flag for "All", by name for real categories
+            int restoredIndex = -1;
+
+            if (previousSelection != null)
+            {
+                restoredIndex = previousSelection.IsAll
+                    ? Categories.FindIndex(c => c.IsAll)
+                    : Categories.FindIndex(c => !c.IsAll && c.Name == previousSelection.Name);
+            }
 
             if (restoredIndex < 0 && Categories.Any())
             {
@@ -586,9 +594,11 @@ namespace AppUI.Deck.Catalog
                 ? _categories[_focusedCategoryIndex]
                 : null;
 
-            Mods = category != null
-                ? _allMods.Where(m => m.Category == category.Name).OrderBy(m => m.Name).ToList()
-                : new List<CatalogModItemViewModel>();
+            Mods = category == null
+                ? new List<CatalogModItemViewModel>()
+                : category.IsAll
+                    ? _allMods.OrderBy(m => m.Name).ToList()
+                    : _allMods.Where(m => m.Category == category.Name).OrderBy(m => m.Name).ToList();
 
             FocusedModIndex = _mods.Any() ? 0 : -1;
             NotifyPropertyChanged(nameof(ModsHeader));
