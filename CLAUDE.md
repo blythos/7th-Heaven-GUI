@@ -41,6 +41,8 @@ separate tool MateriaForge). There is no native Linux build and none is planned.
   **Deck mode code goes here, in new files.**
 - `AppProxy/`, `AppLoader/`, `CatalogValidator/`, `TurBoLog/` — supporting/native; not
   relevant to Deck mode.
+- `deck-deploy/` — Deck deployment: overlay script, two-action-set Steam Input layout,
+  MateriaForge spike findings, on-Deck checklist. Docs-and-script only, no app code.
 
 ## Build & run (Windows)
 
@@ -136,7 +138,9 @@ in `AppUI`.
   do the launch work — drive `GameLauncher`/`GameLaunchViewModel` instead.
 - Settings are **batch-saved**, not live-apply.
 - The mod list/reorder lives in **`MyModsViewModel`**, not `MainWindowViewModel`.
-- On the Deck, MateriaForge's default controller config is **trackpad-as-mouse**. The fix is
+- MateriaForge's default controller config is **gamepad + trackpad-mouse** (its shipped VDF
+  is titled "Gamepad with Mouse Trackpad + Click" — XInput passthrough, not mouse-only as
+  an earlier draft claimed). Deck mode still ships its own layout: the fix is
   **two Steam Input action sets**, not one flat keystroke layout: "Launcher" (buttons →
   keystrokes for the Deck UI) and "Game" (gamepad passthrough). FF7 runs as a child process
   of the same Steam entry, and the existing in-game controller code needs the raw device —
@@ -152,3 +156,5 @@ in `AppUI`.
 
 - Work on `deck-controller-ui`. Small, focused commits. First commit: the README Deck note.
 - Do not commit build output.
+- `deck-deploy/*.sh` are forced LF via `.gitattributes` (the repo default is CRLF, which
+  bash on the Deck rejects) — keep any new Deck-side scripts under that rule.

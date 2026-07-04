@@ -422,12 +422,20 @@ A small shell script under `/deck-deploy/` that:
    runner; leave these as generated.
 2. Copies this fork's built output over the stock files in that same install folder, leaving
    `MateriaForge.toml` and the Proton prefix untouched, and ensures the launch command
-   passes `--deck`.
+   passes `--deck`. **Verified mechanism** (MateriaForge `src/launcher/main.rs`): the
+   "Launch 7th Heaven" shim forwards its own CLI arguments to the exe, falling back to
+   `launch_args` from the toml only when none are given — so `--deck` goes in the Steam
+   entry's launch options, and the toml stays untouched. See `deck-deploy/README.md`.
 
-**Steam Input layout (Deck-only, must be resolved).** MateriaForge/7thDeck install a
-*desktop/trackpad-as-mouse* controller config for 7th Heaven; a controller-first UI needs
-gamepad input instead. But a single flat "every button is a keystroke" layout for the whole
-session is **wrong**: FF7 launches as a **child process of the same Steam entry** (not a
+**Steam Input layout (Deck-only, must be resolved).** MateriaForge installs its own
+controller config for 7th Heaven — **verified against its shipped VDF**
+(`resources/controller_neptune_gamepad+mouse+click.vdf`, titled "Gamepad with Mouse
+Trackpad + Click"): full XInput passthrough for buttons/sticks/d-pad plus right-trackpad
+mouse, *not* mouse-only as an earlier draft claimed. Deck mode's XInput controller source
+may therefore partially work even under the stock config; the keystroke layout below is
+still the supported v1 path (keystrokes are the guaranteed input, and they free X/Y and
+the bumpers from their gamepad meanings). But a single flat "every button is a keystroke"
+layout for the whole session is **wrong**: FF7 launches as a **child process of the same Steam entry** (not a
 separate Steam app), and 7th Heaven already has its own working in-game controller system —
 `GameController.cs` (DirectInput polling), `ControllerInterceptor.cs` (maps buttons FF7
 doesn't natively support into keyboard input it does understand), and
