@@ -498,6 +498,9 @@ Deck early. If it's a problem, run the overlay after every MateriaForge update.
   beyond the standard reorder pattern.
 - The accent-colour question (new `ITheme` property vs fixed resource).
 - Steamworks SDK integration (auto-OSK, glyph detection, `SetGameLauncherMode`).
+- **"Sevenish" theme visual polish** (formerly the "FF7 theme"; renamed to avoid implying
+  official FF7 branding). Contrast/shading still doesn't read right — parked for a later
+  session rather than fixed now. Deck Dark remains the default in the meantime.
 
 ## Suggested build order (separate sessions, not one pass)
 
