@@ -109,6 +109,10 @@ jobs:
           Copy-Item -Path (Join-Path $out '*') -Destination $appDir -Recurse -Force
           # The entire deck-deploy folder (deploy.sh keeps its LF endings via .gitattributes).
           Copy-Item -Path "deck-deploy" -Destination (Join-Path $appDir "deck-deploy") -Recurse -Force
+          # Drop AppLoader build byproducts not needed at runtime (symbols + linker import files).
+          foreach ($f in @('AppLoader.pdb', 'AppLoader.exp', 'AppLoader.lib')) {
+            Remove-Item -Path (Join-Path $appDir $f) -Force -ErrorAction SilentlyContinue
+          }
           Write-Host "Staged into $appDir"
           Get-ChildItem $appDir | Select-Object Name | Format-Table -AutoSize
 
