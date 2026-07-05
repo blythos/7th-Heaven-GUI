@@ -146,30 +146,40 @@ namespace AppUI.Deck
             App.Current.Resources["DeckAccentColor"] = System.Windows.Media.Color.FromRgb(0x2F, 0xD6, 0xA3);
             App.Current.Resources["DeckAccentBrush"] = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2F, 0xD6, 0xA3));
 
-            var boxFill = new System.Windows.Media.LinearGradientBrush(
-                new System.Windows.Media.GradientStopCollection()
+            // the game's windows shade diagonally: bright blue at the top-left corner
+            // falling to near-black at the bottom-right (relative coordinates, so wide
+            // rows lean mostly horizontal exactly like the game's wide dialog boxes)
+            var boxFill = new System.Windows.Media.LinearGradientBrush()
+            {
+                StartPoint = new Point(0, 0),
+                EndPoint = new Point(1, 1),
+                GradientStops = new System.Windows.Media.GradientStopCollection()
                 {
-                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x1E, 0x2E, 0xB4), 0.0),
-                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x0C, 0x16, 0x64), 0.55),
-                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x04, 0x07, 0x2A), 1.0),
+                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x28, 0x38, 0xC0), 0.0),
+                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x0D, 0x17, 0x6E), 0.55),
+                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x02, 0x04, 0x1A), 1.0),
                 },
-                90);
+            };
             boxFill.Freeze();
 
             // rows and the overlay panels all paint from these two brushes
             App.Current.Resources["PrimaryControlBackground"] = boxFill;
             App.Current.Resources["SecondaryAppBackground"] = boxFill;
 
-            // brighter top, darker bottom and a thicker stroke than the first pass,
-            // which read as flat grey on the small screen
-            var bevel = new System.Windows.Media.LinearGradientBrush(
-                new System.Windows.Media.GradientStopCollection()
+            // the bezel is lit the same way as the fill: white-silver at the top-left
+            // of the frame shading to dark steel at the bottom-right, like the game's
+            // rounded pipe border
+            var bevel = new System.Windows.Media.LinearGradientBrush()
+            {
+                StartPoint = new Point(0, 0),
+                EndPoint = new Point(1, 1),
+                GradientStops = new System.Windows.Media.GradientStopCollection()
                 {
-                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0xFA, 0xFA, 0xFF), 0.0),
-                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0xB0, 0xB0, 0xC4), 0.45),
-                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x2E, 0x2E, 0x40), 1.0),
+                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0xFF, 0xFF, 0xFF), 0.0),
+                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0xC0, 0xC0, 0xCC), 0.45),
+                    new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x42, 0x42, 0x4E), 1.0),
                 },
-                90);
+            };
             bevel.Freeze();
 
             App.Current.Resources["DeckPanelBorderBrush"] = bevel;
