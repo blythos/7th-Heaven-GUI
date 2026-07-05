@@ -61,7 +61,17 @@ namespace AppUI.Deck.Dialogs
 
         public string Hint
         {
-            get { return $"{DeckGlyphs.Get(DeckLegendInput.Activate)} selects · {DeckGlyphs.Get(DeckLegendInput.Back)} dismisses"; }
+            get
+            {
+                // a single-button (OK) dialog is just an acknowledgement — one button
+                // closes it, so don't advertise a separate dismiss
+                if (Buttons.Count <= 1)
+                {
+                    return $"{DeckGlyphs.Get(DeckLegendInput.Activate)} to close";
+                }
+
+                return $"{DeckGlyphs.Get(DeckLegendInput.Activate)} selects · {DeckGlyphs.Get(DeckLegendInput.Back)} cancels";
+            }
         }
 
         public DeckDialogViewModel(string title, string message, string details, MessageBoxButton buttons)

@@ -72,7 +72,9 @@ namespace AppUI.Deck.Input
 
         #endregion
 
-        private readonly DispatcherTimer _timer;
+        private readonly System.Threading.Timer _timer;
+        private readonly Dispatcher _dispatcher;
+        private int _isPolling; // overlap guard for the threadpool timer
 
         private int _userIndex = -1;
         private DateTime _lastReconnectAttempt = DateTime.MinValue;
@@ -87,17 +89,47 @@ namespace AppUI.Deck.Input
 
         public ControllerInputSource()
         {
-            _timer = new DispatcherTimer() { Interval = PollInterval };
-            _timer.Tick += (s, e) => Poll();
-            _timer.Start();
+            // Poll on a background (threadpool) timer, not a DispatcherTimer. A
+            // DispatcherTimer delivers its Tick on the UI thread and will not fire again
+            // while its current tick is still on the stack — and a controller-triggered
+            // action that opens a modal runs the modal's nested Dispatcher.PushFrame on
+            // exactly that tick, freezing the poller for the whole modal (the keyboard
+            // kept working because it arrives as independent WPF routed input). Polling
+            // off-thread and marshalling each command via BeginInvoke keeps the poller
+            // alive; the marshalled command is a fresh dispatcher operation that the
+            // nested frame pumps, so dialogs stay controller-dismissable.
+            _dispatcher = Dispatcher.CurrentDispatcher;
+            _timer = new System.Threading.Timer(_ => Poll(), null, PollInterval, PollInterval);
         }
 
         public void Dispose()
         {
-            _timer.Stop();
+            _timer.Dispose();
         }
 
         private void Poll()
+        {
+            // the threadpool timer can re-enter if a tick runs long; keep polls serial
+            if (System.Threading.Interlocked.Exchange(ref _isPolling, 1) == 1)
+            {
+                return;
+            }
+
+            try
+            {
+                PollCore();
+            }
+            catch (Exception e)
+            {
+                Logger.Warn(e, "Deck controller poll failed");
+            }
+            finally
+            {
+                System.Threading.Interlocked.Exchange(ref _isPolling, 0);
+            }
+        }
+
+        private void PollCore()
         {
             XInputState state;
 
@@ -269,10 +301,18 @@ namespace AppUI.Deck.Input
             _previousRightTrigger = rightTrigger;
         }
 
+        /// <summary>
+        /// Marshals the command to the UI thread. Polling runs off-thread (see the
+        /// constructor), so commands must hop over — and going through BeginInvoke is
+        /// also what makes them reach a modal's nested dispatcher frame.
+        /// </summary>
         private void Raise(DeckCommand command)
         {
-            DeckGlyphs.SetCurrentSet(DeckGlyphs.PadSet); // brand comes from the Settings override
-            CommandRaised?.Invoke(command);
+            _dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            {
+                DeckGlyphs.SetCurrentSet(DeckGlyphs.PadSet); // brand comes from the Settings override
+                CommandRaised?.Invoke(command);
+            }));
         }
     }
 }
