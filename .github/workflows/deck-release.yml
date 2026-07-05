@@ -13,10 +13,11 @@ name: Deck mode release
 #                                        artifact only (no Release created)
 
 on:
-  workflow_dispatch:
-  push:
-    tags:
-      - "deck-v*"
+     workflow_dispatch:
+     pull_request:
+     push:
+       tags:
+         - "deck-v*"
 
 # Needed so the release step can create a Release + upload the asset using the
 # built-in GITHUB_TOKEN. No new/custom secrets are introduced.
