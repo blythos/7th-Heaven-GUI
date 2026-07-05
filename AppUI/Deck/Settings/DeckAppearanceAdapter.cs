@@ -16,7 +16,7 @@ namespace AppUI.Deck.Settings
         {
             (DeckPreferences.ThemeDark, "Deck dark"),
             (DeckPreferences.ThemeLight, "Deck light"),
-            (DeckPreferences.ThemeFF7, "Final Fantasy VII"),
+            (DeckPreferences.ThemeFF7, "Sevenish"),
         };
 
         private static readonly double[] Scales = new[] { 1.0, 1.1, 1.25, 1.4 };
