@@ -17,20 +17,25 @@ Contents:
 
 1. MateriaForge has been run normally on the Deck and **stock** 7th Heaven launches and
    plays. Everything below assumes that baseline works.
-2. The fork is built on Windows: `dotnet build AppUI/AppUI.csproj -c Debug` (or Release),
-   plus the separately built `AppLoader.dll` / `AppLoader.pdb` / `nethost.dll` copied
-   into the output folder (see repo build notes — the launcher copies these three into
-   the game dir, so a build without them boots the UI but cannot inject mods).
+2. You have the Deck-mode release zip. Download the latest
+   `7th-Heaven-Deck-Mode-<version>.zip` from the
+   [Releases page](https://github.com/blythos/7th-Heaven-GUI/releases) and unzip it on the
+   Deck (desktop mode). No Windows machine or Visual Studio is needed — the zip is a
+   prebuilt release from CI. The unzipped `7th-Heaven-Deck-Mode/` folder contains the app
+   (`7th Heaven.exe` plus all DLLs, including `AppLoader.dll` / `nethost.dll` for mod
+   injection) and this `deck-deploy/` folder.
 
 ## Deploying
 
-1. Copy the whole build output folder (the one containing `7th Heaven.exe`) to the Deck
-   (USB, `scp`, syncthing — anything).
-2. On the Deck, in desktop mode:
+1. If you unzipped somewhere other than the Deck, copy the whole unzipped
+   `7th-Heaven-Deck-Mode/` folder (the one containing `7th Heaven.exe`) to the Deck (USB,
+   `scp`, syncthing — anything).
+2. On the Deck, in desktop mode, from inside that folder:
 
    ```sh
-   ./deploy.sh /path/to/build-output            # searches $HOME for the install
-   ./deploy.sh /path/to/build-output /path/to/install   # or explicit
+   cd 7th-Heaven-Deck-Mode
+   ./deck-deploy/deploy.sh .                     # searches $HOME for the install
+   ./deck-deploy/deploy.sh . /path/to/install    # or explicit
    ```
 
    The script validates both folders (`7th Heaven.exe` + `MateriaForge.toml`), backs up
