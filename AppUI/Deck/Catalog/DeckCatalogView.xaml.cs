@@ -69,6 +69,32 @@ namespace AppUI.Deck.Catalog
             }
         }
 
+        private void lstDownloads_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (lstDownloads.SelectedItem != null)
+            {
+                lstDownloads.ScrollIntoView(lstDownloads.SelectedItem);
+            }
+        }
+
+        private void DownloadPause_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (((FrameworkElement)sender).DataContext is ViewModels.DownloadItemViewModel item)
+            {
+                (DataContext as DeckCatalogViewModel)?.PauseOrResumeViaMouse(item);
+                e.Handled = true;
+            }
+        }
+
+        private void DownloadCancel_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (((FrameworkElement)sender).DataContext is ViewModels.DownloadItemViewModel item)
+            {
+                (DataContext as DeckCatalogViewModel)?.CancelViaMouse(item);
+                e.Handled = true;
+            }
+        }
+
         #region Mouse support
 
         private void lstCategories_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)

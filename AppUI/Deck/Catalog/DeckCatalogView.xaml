@@ -301,8 +301,9 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <!-- active downloads strip -->
-            <ItemsControl ItemsSource="{Binding CatalogSource.DownloadList}"
+            <!-- active downloads strip (passive; the panel below manages them and,
+                 when open, its dim overlay covers this strip) -->
+            <ItemsControl ItemsSource="{Binding Downloads}"
                           VerticalAlignment="Bottom"
                           Margin="16">
                 <ItemsControl.ItemTemplate>
@@ -323,6 +324,105 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+        </Grid>
+
+        <!-- downloads manager (opened with the Downloads legend action) -->
+        <Grid Grid.Column="0" Grid.ColumnSpan="3"
+              Background="#CC141414"
+              Visibility="{Binding IsDownloadsPanelOpen, Converter={StaticResource BoolToVis}}">
+            <Border Background="{DynamicResource SecondaryAppBackground}"
+                    BorderBrush="{DynamicResource DeckPanelBorderBrush}"
+                    BorderThickness="{DynamicResource DeckPanelBorderThickness}"
+                    CornerRadius="6"
+                    Padding="24,20"
+                    MinWidth="620" MaxWidth="900" MaxHeight="620"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Downloads" FontSize="20" FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryControlForeground}"/>
+
+                    <ListBox x:Name="lstDownloads" Grid.Row="1"
+                             ItemsSource="{Binding Downloads}"
+                             SelectedIndex="{Binding FocusedDownloadIndex, Mode=TwoWay}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Focusable="False"
+                             KeyboardNavigation.DirectionalNavigation="None"
+                             HorizontalContentAlignment="Stretch"
+                             Margin="0,14,0,0"
+                             SelectionChanged="lstDownloads_SelectionChanged">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Focusable" Value="True"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="rowBorder"
+                                                    BorderThickness="2"
+                                                    BorderBrush="{DynamicResource DeckPanelBorderBrush}"
+                                                    Background="{DynamicResource PrimaryControlBackground}"
+                                                    Padding="14,10" Margin="0,2">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="rowBorder" Property="BorderBrush" Value="{DynamicResource DeckAccentBrush}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding ItemName}" FontSize="14"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource PrimaryControlForeground}"/>
+                                        <ProgressBar Value="{Binding PercentComplete, Mode=OneWay}" Maximum="100"
+                                                     Height="4" Margin="0,6,8,0"
+                                                     Background="{DynamicResource PrimaryControlPressed}"
+                                                     Foreground="{DynamicResource DeckAccentBrush}"
+                                                     BorderThickness="0"/>
+                                        <TextBlock Text="{Binding DownloadSpeed}" FontSize="11" Margin="0,4,0,0"
+                                                   Foreground="{DynamicResource PrimaryControlSecondary}"/>
+                                    </StackPanel>
+
+                                    <Border Grid.Column="1" CornerRadius="4" Padding="14,6" Margin="8,0,0,0"
+                                            VerticalAlignment="Center" Cursor="Hand"
+                                            Background="{DynamicResource PrimaryControlPressed}"
+                                            MouseLeftButtonUp="DownloadPause_MouseLeftButtonUp">
+                                        <TextBlock Text="Pause/resume" FontSize="12"
+                                                   Foreground="{DynamicResource PrimaryControlForeground}"/>
+                                    </Border>
+                                    <Border Grid.Column="2" CornerRadius="4" Padding="14,6" Margin="8,0,0,0"
+                                            VerticalAlignment="Center" Cursor="Hand"
+                                            Background="{DynamicResource PrimaryControlPressed}"
+                                            MouseLeftButtonUp="DownloadCancel_MouseLeftButtonUp">
+                                        <TextBlock Text="Cancel" FontSize="12"
+                                                   Foreground="{DynamicResource PrimaryControlForeground}"/>
+                                    </Border>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
         </Grid>
     </Grid>
 </UserControl>

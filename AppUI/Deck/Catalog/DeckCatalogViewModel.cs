@@ -4,6 +4,8 @@ using AppUI.ViewModels;
 using Iros.Workshop;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 
@@ -47,15 +49,43 @@ namespace AppUI.Deck.Catalog
         private string _focusedModReleaseNotes;
         private string _focusedModLink;
 
+        private bool _isDownloadsPanelOpen;
+        private int _focusedDownloadIndex;
+
         private List<DeckLegendItem> _legendItems = new List<DeckLegendItem>();
 
         public DeckCatalogViewModel(CatalogViewModel catalog)
         {
             _catalog = catalog;
             _catalog.PropertyChanged += Catalog_PropertyChanged;
+            _catalog.DownloadList.CollectionChanged += Downloads_CollectionChanged;
 
             RefreshFromCatalog();
             RebuildLegend();
+        }
+
+        private void Downloads_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                NotifyPropertyChanged(nameof(HasDownloads));
+
+                // keep focus in range and close the panel once the queue drains
+                if (!_catalog.DownloadList.Any())
+                {
+                    if (IsDownloadsPanelOpen)
+                    {
+                        IsDownloadsPanelOpen = false;
+                    }
+                }
+                else if (_focusedDownloadIndex >= _catalog.DownloadList.Count)
+                {
+                    FocusedDownloadIndex = _catalog.DownloadList.Count - 1;
+                }
+
+                NotifyPropertyChanged(nameof(FocusedDownload));
+                RebuildLegend(); // the "Downloads" hint appears/disappears with the queue
+            });
         }
 
         #region Bindable state
@@ -258,6 +288,50 @@ namespace AppUI.Deck.Catalog
             }
         }
 
+        /// <summary>Active downloads (the wrapped desktop list); the panel binds this directly.</summary>
+        public ObservableCollection<DownloadItemViewModel> Downloads
+        {
+            get { return _catalog.DownloadList; }
+        }
+
+        public bool HasDownloads
+        {
+            get { return _catalog.DownloadList.Any(); }
+        }
+
+        /// <summary>True while the controller-navigable downloads manager is up.</summary>
+        public bool IsDownloadsPanelOpen
+        {
+            get { return _isDownloadsPanelOpen; }
+            private set
+            {
+                _isDownloadsPanelOpen = value;
+                NotifyPropertyChanged();
+                RebuildLegend();
+            }
+        }
+
+        public int FocusedDownloadIndex
+        {
+            get { return _focusedDownloadIndex; }
+            set
+            {
+                _focusedDownloadIndex = value;
+                NotifyPropertyChanged();
+                NotifyPropertyChanged(nameof(FocusedDownload));
+            }
+        }
+
+        public DownloadItemViewModel FocusedDownload
+        {
+            get
+            {
+                return (_focusedDownloadIndex >= 0 && _focusedDownloadIndex < _catalog.DownloadList.Count)
+                    ? _catalog.DownloadList[_focusedDownloadIndex]
+                    : null;
+            }
+        }
+
         #endregion
 
         /// <summary>Called by the shell when navigation focus enters the catalog content.</summary>
@@ -297,6 +371,12 @@ namespace AppUI.Deck.Catalog
                 }
 
                 // swallow everything while typing
+                return true;
+            }
+
+            if (IsDownloadsPanelOpen)
+            {
+                HandleDownloadsPanelCommand(command);
                 return true;
             }
 
@@ -374,10 +454,103 @@ namespace AppUI.Deck.Catalog
                     OpenSearchOverlay();
                     return true;
 
+                case DeckCommand.Delete:
+                    if (HasDownloads)
+                    {
+                        OpenDownloadsPanel();
+                        return true;
+                    }
+
+                    return false;
+
                 default:
                     return false; // sections, play etc. stay with the shell
             }
         }
+
+        #region Downloads panel
+
+        private void OpenDownloadsPanel()
+        {
+            FocusedDownloadIndex = 0;
+            IsDownloadsPanelOpen = true;
+        }
+
+        private void HandleDownloadsPanelCommand(DeckCommand command)
+        {
+            switch (command)
+            {
+                case DeckCommand.NavigateUp:
+                    FocusedDownloadIndex = Math.Max(0, FocusedDownloadIndex - 1);
+                    break;
+
+                case DeckCommand.NavigateDown:
+                    FocusedDownloadIndex = Math.Min(_catalog.DownloadList.Count - 1, FocusedDownloadIndex + 1);
+                    break;
+
+                case DeckCommand.Activate:
+                    // pause or resume the focused download
+                    if (FocusedDownload != null)
+                    {
+                        _catalog.PauseOrResumeDownload(FocusedDownload);
+                        NotifyPropertyChanged(nameof(FocusedDownload));
+                    }
+                    break;
+
+                case DeckCommand.Delete:
+                    CancelFocusedDownload();
+                    break;
+
+                case DeckCommand.Back:
+                    IsDownloadsPanelOpen = false;
+                    break;
+            }
+        }
+
+        private void CancelFocusedDownload()
+        {
+            DownloadItemViewModel download = FocusedDownload;
+
+            if (download == null || download.IsCancelling)
+            {
+                return;
+            }
+
+            var confirm = AppUI.Windows.MessageDialogWindow.Show(
+                $"Cancel the download of {download.ItemName}?",
+                "Cancel download",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning);
+
+            if (confirm.Result == System.Windows.MessageBoxResult.Yes && !download.IsCancelling)
+            {
+                Logger.Info($"Deck mode: cancelling download {download.ItemName}");
+                _catalog.CancelDownload(download);
+            }
+        }
+
+        /// <summary>Mouse entry point: pause/resume a download from its strip button.</summary>
+        public void PauseOrResumeViaMouse(DownloadItemViewModel download)
+        {
+            if (download != null)
+            {
+                _catalog.PauseOrResumeDownload(download);
+            }
+        }
+
+        /// <summary>Mouse entry point: cancel a download from its strip button.</summary>
+        public void CancelViaMouse(DownloadItemViewModel download)
+        {
+            int index = _catalog.DownloadList.IndexOf(download);
+
+            if (index >= 0)
+            {
+                FocusedDownloadIndex = index;
+                CancelFocusedDownload();
+            }
+        }
+
+        #endregion
 
         private int FocusedIndexOfColumn()
         {
@@ -619,11 +792,22 @@ namespace AppUI.Deck.Catalog
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Search"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"));
             }
+            else if (IsDownloadsPanelOpen)
+            {
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Pause/resume"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Delete, "Cancel download"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Close"));
+            }
             else if (_focusedColumn == CatalogColumn.Mods)
             {
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Install"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Search, "Search"));
+                if (HasDownloads)
+                {
+                    items.Add(DeckGlyphs.Item(DeckLegendInput.Delete, "Downloads"));
+                }
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Back"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Sections, "Section"));
             }
@@ -632,6 +816,10 @@ namespace AppUI.Deck.Catalog
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Open category"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Search, "Search"));
+                if (HasDownloads)
+                {
+                    items.Add(DeckGlyphs.Item(DeckLegendInput.Delete, "Downloads"));
+                }
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Back"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Sections, "Section"));
             }
