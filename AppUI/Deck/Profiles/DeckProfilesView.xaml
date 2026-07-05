@@ -37,7 +37,7 @@
                             <ControlTemplate TargetType="ListBoxItem">
                                 <Border x:Name="rowBorder"
                                         BorderThickness="2"
-                                        BorderBrush="Transparent"
+                                        BorderBrush="{DynamicResource DeckPanelBorderBrush}"
                                         Background="{DynamicResource PrimaryControlBackground}"
                                         Padding="16,12"
                                         Margin="0,2">
@@ -164,7 +164,7 @@
                                     <ControlTemplate TargetType="ListBoxItem">
                                         <Border x:Name="rowBorder"
                                                 BorderThickness="2"
-                                                BorderBrush="Transparent"
+                                                BorderBrush="{DynamicResource DeckPanelBorderBrush}"
                                                 Background="{DynamicResource PrimaryControlBackground}"
                                                 Padding="14,10"
                                                 Margin="0,2">
