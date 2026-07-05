@@ -5,6 +5,7 @@ using Iros.Workshop;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 
 namespace AppUI.Deck.Options
@@ -57,6 +58,9 @@ namespace AppUI.Deck.Options
 
             Config = new ConfigureModViewModel();
             Config.Init(access.Info, access.ImageReader, access.AudioReader, _activeModInfo, access.Constraints, access.PathToModXml);
+
+            // the preview affordance and its play/stop label follow the config state
+            Config.PropertyChanged += Config_PropertyChanged;
 
             var initialValues = _activeModInfo.Settings.ToDictionary(s => s.ID, s => s.Value, StringComparer.InvariantCultureIgnoreCase);
             _rows = Config.ModOptions.Select(o => new DeckOptionRowViewModel(o, initialValues, _constraints)).ToList();
@@ -150,6 +154,31 @@ namespace AppUI.Deck.Options
             }
         }
 
+        /// <summary>True when the focused option's current value carries a preview clip.</summary>
+        public bool HasAudioPreview
+        {
+            get { return Config.PreviewButtonVisibility == System.Windows.Visibility.Visible; }
+        }
+
+        public bool IsPlayingAudio
+        {
+            get { return Config.IsPlayingAudio; }
+        }
+
+        private void Config_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ConfigureModViewModel.PreviewButtonVisibility))
+            {
+                NotifyPropertyChanged(nameof(HasAudioPreview));
+                RebuildLegend();
+            }
+            else if (e.PropertyName == nameof(ConfigureModViewModel.IsPlayingAudio))
+            {
+                NotifyPropertyChanged(nameof(IsPlayingAudio));
+                RebuildLegend();
+            }
+        }
+
         public bool HandleCommand(DeckCommand command)
         {
             if (IsValuePanelOpen)
@@ -192,12 +221,29 @@ namespace AppUI.Deck.Options
                     GoBack();
                     break;
 
+                case DeckCommand.OpenOptions:
+                    // play or stop the focused value's preview clip (toggles)
+                    if (HasAudioPreview)
+                    {
+                        Config.PlayPreviewAudio();
+                    }
+                    break;
+
                 default:
                     // the takeover swallows everything else (sections, play, search…)
                     break;
             }
 
             return true;
+        }
+
+        /// <summary>Mouse entry point: play/stop the preview clip.</summary>
+        public void TogglePreviewViaMouse()
+        {
+            if (HasAudioPreview)
+            {
+                Config.PlayPreviewAudio();
+            }
         }
 
         private void MoveRowFocus(int change)
@@ -432,7 +478,8 @@ namespace AppUI.Deck.Options
             ApplyLive();
             GameLauncher.SanityCheckSettings();
 
-            Config.CleanUp();
+            Config.PropertyChanged -= Config_PropertyChanged;
+            Config.CleanUp(); // stops any preview audio
             _access.Dispose();
 
             Logger.Info($"Deck mode: closed options for {ModName}");
@@ -460,6 +507,10 @@ namespace AppUI.Deck.Options
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Move, "Move"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, "Change"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.LeftRight, "Cycle value"));
+                if (HasAudioPreview)
+                {
+                    items.Add(DeckGlyphs.Item(DeckLegendInput.Options, IsPlayingAudio ? "Stop preview" : "Preview audio"));
+                }
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Back, _levelStack.Any() ? "Back" : "Done"));
             }
 
