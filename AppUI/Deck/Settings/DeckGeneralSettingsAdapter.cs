@@ -54,6 +54,16 @@ namespace AppUI.Deck.Settings
 
             return new List<DeckSettingRowViewModel>()
             {
+                DeckSettingRowViewModel.Header("Paths"),
+
+                // usually auto-detected (and set up by MateriaForge on the Deck); editable
+                // via the keyboard overlay for correction. Saving re-runs the desktop path.
+                DeckSettingRowViewModel.Text("Game exe", "Path to ff7.exe / ff7_en.exe / FFVII.exe",
+                    () => vm.FF7ExePathInput, v => { vm.FF7ExePathInput = v; apply(); }),
+
+                DeckSettingRowViewModel.Text("Library folder", "Where installed mods are stored",
+                    () => vm.LibraryPathInput, v => { vm.LibraryPathInput = v; apply(); }),
+
                 DeckSettingRowViewModel.Header("Play"),
 
                 // stored on GameLaunchSettings, so it persists via Sys.SaveSettings directly

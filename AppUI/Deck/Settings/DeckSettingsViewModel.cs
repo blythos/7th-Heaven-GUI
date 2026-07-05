@@ -50,6 +50,14 @@ namespace AppUI.Deck.Settings
         private string _confirmText = "";
         private SubscriptionSettingViewModel _pendingRemoveSub;
 
+        // extra folders level (non-null while it is the current level)
+        private GeneralSettingsViewModel _foldersVm;
+        private bool _isAddingFolder;
+        private string _pendingRemoveFolder;
+
+        // folders SaveSettings always re-adds; removing them is futile
+        private static readonly string[] DefaultFolders = { "direct", "music", "sfx", "voice", "ambient", "widescreen", "shaders" };
+
         private List<DeckLegendItem> _legendItems = new List<DeckLegendItem>();
 
         public DeckSettingsViewModel(Action onQuitRequested, Action onCatalogChanged)
@@ -256,6 +264,10 @@ namespace AppUI.Deck.Settings
                     {
                         TryAddSubscription(); // stays open with inline feedback when invalid
                     }
+                    else if (_isAddingFolder)
+                    {
+                        TryAddFolder();
+                    }
                     else
                     {
                         FocusedRow?.SetValue(TextDraft ?? "");
@@ -272,12 +284,21 @@ namespace AppUI.Deck.Settings
                 if (command == DeckCommand.Activate)
                 {
                     IsConfirmOpen = false;
-                    RemoveConfirmedSubscription();
+
+                    if (IsFoldersLevel)
+                    {
+                        RemoveConfirmedFolder();
+                    }
+                    else
+                    {
+                        RemoveConfirmedSubscription();
+                    }
                 }
                 else if (command == DeckCommand.Back)
                 {
                     IsConfirmOpen = false;
                     _pendingRemoveSub = null;
+                    _pendingRemoveFolder = null;
                 }
 
                 return true;
@@ -357,6 +378,12 @@ namespace AppUI.Deck.Settings
                         return true;
                     }
 
+                    if (IsFoldersLevel)
+                    {
+                        BeginRemoveFocusedFolder();
+                        return true;
+                    }
+
                     return false;
 
                 default:
@@ -424,6 +451,11 @@ namespace AppUI.Deck.Settings
             if (IsSubscriptionsLevel)
             {
                 CloseSubscriptionsLevel();
+            }
+
+            if (IsFoldersLevel)
+            {
+                CloseFoldersLevel();
             }
 
             var (rows, focusIndex, title) = _levelStack.Pop();
@@ -610,6 +642,7 @@ namespace AppUI.Deck.Settings
                 DeckSettingRowViewModel.Action("General", "App behaviour, update channels and library options", OpenGeneral),
                 DeckSettingRowViewModel.Action("Appearance", "Theme, UI scale and controller button glyphs", OpenAppearance),
                 DeckSettingRowViewModel.Action("Catalog subscriptions", "Add, remove and prioritise the mod catalogs behind Browse catalog", OpenSubscriptions),
+                DeckSettingRowViewModel.Action("Extra folders", "Additional game folders 7th Heaven writes mod files into", OpenFolders),
                 DeckSettingRowViewModel.Action("Quit 7th Heaven", "Exit the app", () => _onQuitRequested?.Invoke()),
             };
         }
@@ -918,6 +951,7 @@ namespace AppUI.Deck.Settings
         {
             IsTextOverlayOpen = false;
             _isAddingSubscription = false;
+            _isAddingFolder = false;
             TextOverlayStatus = "";
         }
 
@@ -954,6 +988,167 @@ namespace AppUI.Deck.Settings
 
         #endregion
 
+        #region Extra folders
+
+        private bool IsFoldersLevel
+        {
+            get { return _foldersVm != null; }
+        }
+
+        /// <summary>
+        /// List screen over <see cref="GeneralSettingsViewModel.ExtraFolderList"/>: rows
+        /// are the extra game folders 7th Heaven writes into. Add a folder name through
+        /// the keyboard overlay, remove behind an inline confirm. The default folders
+        /// (direct, music, …) cannot be removed — SaveSettings always re-adds them —
+        /// so removal is refused for those. No reorder: SaveSettings re-normalises order.
+        /// </summary>
+        private void OpenFolders()
+        {
+            var vm = new GeneralSettingsViewModel();
+            vm.LoadSettings(Sys.Settings);
+            _foldersVm = vm;
+
+            Logger.Info("Deck mode: opened extra folders");
+            PushLevel("Extra folders", BuildFolderRows());
+        }
+
+        private void CloseFoldersLevel()
+        {
+            _pendingRemoveFolder = null;
+            _isConfirmOpen = false;
+            _isAddingFolder = false;
+            _foldersVm = null;
+        }
+
+        private List<DeckSettingRowViewModel> BuildFolderRows()
+        {
+            var rows = new List<DeckSettingRowViewModel>();
+
+            foreach (string folder in _foldersVm.ExtraFolderList)
+            {
+                string captured = folder;
+                bool isDefault = DefaultFolders.Contains(folder, StringComparer.InvariantCultureIgnoreCase);
+
+                var row = DeckSettingRowViewModel.Action(
+                    folder,
+                    isDefault ? "Default folder (always present)" : "Custom folder",
+                    () => { }); // folder rows have no primary action; remove is on the Options button
+                row.Tag = captured;
+
+                rows.Add(row);
+            }
+
+            rows.Add(DeckSettingRowViewModel.Action("Add folder", "Add a game folder by name (e.g. a custom mod output folder)", OpenAddFolder));
+
+            return rows;
+        }
+
+        private void RefreshFolderRows()
+        {
+            if (!IsFoldersLevel)
+            {
+                return;
+            }
+
+            int focus = FocusedRowIndex;
+            Rows = BuildFolderRows();
+            FocusedRowIndex = Math.Max(0, Math.Min(focus, _rows.Count - 1));
+        }
+
+        private void BeginRemoveFocusedFolder()
+        {
+            if (!(FocusedRow?.Tag is string folder))
+            {
+                return; // the Add row is not removable
+            }
+
+            if (DefaultFolders.Contains(folder, StringComparer.InvariantCultureIgnoreCase))
+            {
+                Sys.Message(new WMessage($"{folder} is a default folder and cannot be removed", true));
+                return;
+            }
+
+            _pendingRemoveFolder = folder;
+            ConfirmText = $"Remove the extra folder {folder}?";
+            IsConfirmOpen = true;
+        }
+
+        private void RemoveConfirmedFolder()
+        {
+            if (_pendingRemoveFolder == null || _foldersVm == null)
+            {
+                return;
+            }
+
+            Logger.Info($"Deck mode: removing extra folder {_pendingRemoveFolder}");
+            _foldersVm.ExtraFolderList.Remove(_pendingRemoveFolder);
+            _pendingRemoveFolder = null;
+
+            PersistFolders(_foldersVm);
+            RefreshFolderRows();
+        }
+
+        private void OpenAddFolder()
+        {
+            _isAddingFolder = true;
+            TextDraft = "";
+            IsTextOverlayOpen = true;
+        }
+
+        private void TryAddFolder()
+        {
+            string folder = (TextDraft ?? "").Trim().ToLowerInvariant();
+
+            if (folder.Length == 0)
+            {
+                TextOverlayStatus = "Folder name cannot be empty";
+                return;
+            }
+
+            if (folder.IndexOfAny(System.IO.Path.GetInvalidFileNameChars()) >= 0)
+            {
+                TextOverlayStatus = "Folder name contains invalid characters";
+                return;
+            }
+
+            if (_foldersVm.ExtraFolderList.Contains(folder))
+            {
+                TextOverlayStatus = "That folder is already in the list";
+                return;
+            }
+
+            _foldersVm.ExtraFolderList.Add(folder);
+            Logger.Info($"Deck mode: adding extra folder {folder}");
+
+            CloseTextOverlay();
+            PersistFolders(_foldersVm);
+            RefreshFolderRows();
+        }
+
+        private void PersistFolders(GeneralSettingsViewModel vm)
+        {
+            if (string.IsNullOrWhiteSpace(vm.FF7ExePathInput) || string.IsNullOrWhiteSpace(vm.LibraryPathInput))
+            {
+                Sys.Message(new WMessage("Cannot save - set the game and library paths first", true));
+                return;
+            }
+
+            try
+            {
+                if (vm.SaveSettings())
+                {
+                    Sys.SaveSettings();
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e);
+                Sys.Message(new WMessage("Failed to save extra folders", true));
+            }
+        }
+
+        #endregion
+
         /// <summary>Rebuilds legend glyphs after the active input device changes.</summary>
         public void RefreshLegend()
         {
@@ -967,7 +1162,7 @@ namespace AppUI.Deck.Settings
 
             if (IsTextOverlayOpen)
             {
-                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, _isAddingSubscription ? "Add" : "Save"));
+                items.Add(DeckGlyphs.Item(DeckLegendInput.Activate, (_isAddingSubscription || _isAddingFolder) ? "Add" : "Save"));
                 items.Add(DeckGlyphs.Item(DeckLegendInput.Back, "Cancel"));
             }
             else if (IsConfirmOpen)
@@ -996,6 +1191,10 @@ namespace AppUI.Deck.Settings
                 if (row?.Tag is SubscriptionSettingViewModel)
                 {
                     items.Add(DeckGlyphs.Item(DeckLegendInput.Reorder, "Reorder"));
+                    items.Add(DeckGlyphs.Item(DeckLegendInput.Options, "Remove"));
+                }
+                else if (row?.Tag is string)
+                {
                     items.Add(DeckGlyphs.Item(DeckLegendInput.Options, "Remove"));
                 }
                 else if (row != null)
