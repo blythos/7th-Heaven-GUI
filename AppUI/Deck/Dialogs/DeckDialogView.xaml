@@ -1,0 +1,93 @@
+<UserControl x:Class="AppUI.Deck.Dialogs.DeckDialogView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <!-- dim layer over whatever screen is showing; the panel matches the shell's
+         other overlays (quit prompt, play picker) -->
+    <Grid Background="#CC141414">
+        <Border Background="{DynamicResource SecondaryAppBackground}"
+                BorderBrush="{DynamicResource DeckPanelBorderBrush}"
+                BorderThickness="{DynamicResource DeckPanelBorderThickness}"
+                CornerRadius="6"
+                Padding="32,26"
+                MinWidth="380" MaxWidth="680" MaxHeight="520"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="{Binding Title}"
+                           FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Foreground="{DynamicResource PrimaryControlForeground}"/>
+
+                <ScrollViewer Grid.Row="1" Margin="0,14,0,0"
+                              VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Message}"
+                                   FontSize="15" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource PrimaryControlForeground}"
+                                   Visibility="{Binding ShowMessage, Converter={StaticResource BoolToVis}}"/>
+                        <TextBlock Text="{Binding Details}"
+                                   FontSize="13" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource PrimaryControlSecondary}"
+                                   Visibility="{Binding ShowDetails, Converter={StaticResource BoolToVis}}"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ItemsControl Grid.Row="2"
+                              ItemsSource="{Binding Buttons}"
+                              HorizontalAlignment="Right"
+                              Margin="0,20,0,0"
+                              Focusable="False">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border x:Name="buttonBorder"
+                                    Background="{DynamicResource PrimaryControlBackground}"
+                                    BorderThickness="2"
+                                    BorderBrush="{DynamicResource DeckPanelBorderBrush}"
+                                    CornerRadius="4"
+                                    Padding="24,8"
+                                    Margin="10,0,0,0"
+                                    MinWidth="96"
+                                    Cursor="Hand"
+                                    MouseLeftButtonUp="DialogButton_MouseLeftButtonUp">
+                                <TextBlock Text="{Binding Label}"
+                                           FontSize="15" FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource PrimaryControlForeground}"/>
+                            </Border>
+                            <DataTemplate.Triggers>
+                                <Trigger SourceName="buttonBorder" Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="buttonBorder" Property="Background" Value="{DynamicResource PrimaryControlMouseOver}"/>
+                                </Trigger>
+                                <DataTrigger Binding="{Binding IsFocused}" Value="True">
+                                    <Setter TargetName="buttonBorder" Property="BorderBrush" Value="{DynamicResource DeckAccentBrush}"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Grid.Row="3"
+                           Text="{Binding Hint}"
+                           FontSize="12"
+                           Margin="0,14,0,0"
+                           HorizontalAlignment="Right"
+                           Foreground="{DynamicResource PrimaryControlSecondary}"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

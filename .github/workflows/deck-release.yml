@@ -1,0 +1,145 @@
+name: Deck mode release
+
+# Builds a ready-to-use, download-and-deploy release zip for the Deck-mode fork,
+# so it can be deployed on a Steam Deck without owning Windows or Visual Studio.
+#
+# This is intentionally SEPARATE from main-4.5.2.yml (the Tsunamods pipeline,
+# which needs secrets this fork doesn't have: InnoSetup installer, VirusTotal,
+# alert webhooks, tag-moving). Do not merge the two.
+#
+# Triggers:
+#   - push of a tag matching deck-v*  -> builds AND publishes a GitHub Release
+#   - workflow_dispatch (manual)      -> builds and uploads the zip as a run
+#                                        artifact only (no Release created)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "deck-v*"
+
+# Needed so the release step can create a Release + upload the asset using the
+# built-in GITHUB_TOKEN. No new/custom secrets are introduced.
+# NOTE: the repo must also allow this at the org/repo level — see
+# Settings -> Actions -> General -> Workflow permissions -> "Read and write".
+permissions:
+  contents: write
+
+env:
+  _SOLUTION: 7thHeaven.sln
+  _RELEASE_CONFIGURATION: Release
+  _TFM: net10.0-windows7.0
+  # Fix git reporting from stderr to stdout (mirrors the stock workflow).
+  GIT_REDIRECT_STDERR: "2>&1"
+
+jobs:
+  build:
+    # Standard GitHub-hosted runner. See the caveat in the accompanying notes:
+    # AppLoader.vcxproj pins PlatformToolset v145 (VS 2026); if the hosted image
+    # lacks it, switch this to a runner/label that provides it.
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Set git config
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.filemode false
+          git config --global core.longpaths true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare environment (vcpkg)
+        run: .github/workflows/deck-prepare.ps1
+        shell: pwsh
+
+      - name: Determine version
+        id: ver
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/*') {
+            $v = $env:GITHUB_REF_NAME
+          } else {
+            $short = $env:GITHUB_SHA.Substring(0, 7)
+            $v = "manual-$($env:GITHUB_RUN_NUMBER)-$short"
+          }
+          $zip = "7th-Heaven-Deck-Mode-$v.zip"
+          "version=$v"   | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "zipname=$zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Version: $v"
+          Write-Host "Zip:     $zip"
+
+      - name: Set up NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore NuGet packages
+        run: nuget restore $env:_SOLUTION
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build whole solution (Release, Any CPU)
+        # Whole solution, NOT just AppUI.csproj — this is what produces
+        # AppLoader.dll/.pdb + nethost.dll into the AppUI output folder. Matches
+        # the stock pipeline's proven invocation.
+        run: msbuild $env:_SOLUTION /m -p:Configuration=$env:_RELEASE_CONFIGURATION -p:Platform="Any CPU"
+
+      - name: Verify native loader files are present
+        # Guard so a UI-only build (no mod injection) can never ship as a release.
+        shell: pwsh
+        run: |
+          $out = "AppUI/bin/$($env:_RELEASE_CONFIGURATION)/$($env:_TFM)"
+          $required = @('7th Heaven.exe', 'AppLoader.dll', 'AppLoader.pdb', 'nethost.dll')
+          $missing = @($required | Where-Object { -not (Test-Path (Join-Path $out $_)) })
+          if ($missing.Count -gt 0) {
+            Write-Error "Missing required file(s) in ${out}: $($missing -join ', '). The whole solution must build so AppLoader lands in the AppUI output."
+            exit 1
+          }
+          Write-Host "All required loader files present in $out."
+
+      - name: Assemble staging folder
+        shell: pwsh
+        run: |
+          $out    = "AppUI/bin/$($env:_RELEASE_CONFIGURATION)/$($env:_TFM)"
+          $appDir = "staging/7th-Heaven-Deck-Mode"
+          New-Item -ItemType Directory -Force -Path $appDir | Out-Null
+          # Full AppUI Release output (exe + all DLLs incl. AppLoader/nethost + subfolders).
+          Copy-Item -Path (Join-Path $out '*') -Destination $appDir -Recurse -Force
+          # The entire deck-deploy folder (deploy.sh keeps its LF endings via .gitattributes).
+          Copy-Item -Path "deck-deploy" -Destination (Join-Path $appDir "deck-deploy") -Recurse -Force
+          # Drop AppLoader build byproducts not needed at runtime (symbols + linker import files).
+          foreach ($f in @('AppLoader.pdb', 'AppLoader.exp', 'AppLoader.lib')) {
+            Remove-Item -Path (Join-Path $appDir $f) -Force -ErrorAction SilentlyContinue
+          }
+          Write-Host "Staged into $appDir"
+          Get-ChildItem $appDir | Select-Object Name | Format-Table -AutoSize
+
+      - name: Zip release
+        shell: pwsh
+        run: |
+          $zip = "${{ steps.ver.outputs.zipname }}"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path "staging/7th-Heaven-Deck-Mode" -DestinationPath $zip
+          Write-Host "Created $zip"
+
+      - name: Upload build artifact
+        # Always available (incl. manual dispatch test runs) for download from the run.
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.ver.outputs.zipname }}
+          path: ${{ steps.ver.outputs.zipname }}
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        # Only on tag pushes. Uses the built-in GITHUB_TOKEN — no new secrets.
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: 7th Heaven Deck Mode ${{ steps.ver.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          files: ${{ steps.ver.outputs.zipname }}
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

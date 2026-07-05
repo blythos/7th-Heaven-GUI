@@ -312,6 +312,9 @@ namespace AppUI.ViewModels
                     { "Light Mode", AppTheme.LightMode },
                     { "Light Mode w/ Background", AppTheme.LightModeWithBackground},
                     { "Classic 7H", AppTheme.Classic7H },
+                    { "Deck dark", AppTheme.DeckDark },
+                    { "Deck light", AppTheme.DeckLight },
+                    { "Final Fantasy VII", AppTheme.DeckFF7 },
                     { "Custom", AppTheme.Custom },
                 };
             }

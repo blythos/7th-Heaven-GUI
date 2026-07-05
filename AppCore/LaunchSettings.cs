@@ -2,6 +2,17 @@
 
 namespace AppCore
 {
+    /// <summary>
+    /// The launch variant used when pressing play without picking one explicitly.
+    /// Maps to the three launch flags (noMods, debugLogging, variableDump).
+    /// </summary>
+    public enum DefaultPlayCommandOptions
+    {
+        PlayWithMods,
+        PlayWithoutMods,
+        PlayWithDebugLog,
+        PlayWithVariableDump,
+    }
 
     [Serializable]
     public class LaunchSettings
@@ -30,10 +41,16 @@ namespace AppCore
 
 
         /// <summary>
-        /// File name of the ff7input.cfg file to copy to ff7 game dir 
+        /// File name of the ff7input.cfg file to copy to ff7 game dir
         /// e.g. "stock game.cfg" or "custom.cfg"
         /// </summary>
         public string InGameConfigOption { get; set; }
+
+        /// <summary>
+        /// Launch variant used for the play action in Deck mode (defaults to playing
+        /// with mods; missing from older settings files deserializes to the default).
+        /// </summary>
+        public DefaultPlayCommandOptions DefaultPlayCommand { get; set; }
 
         public static LaunchSettings DefaultSettings()
         {
@@ -51,6 +68,7 @@ namespace AppCore
                 HasDisplayedMovieWarning = false,
                 EnablePs4ControllerService = false,
                 EnableGamepadPolling = false,
+                DefaultPlayCommand = DefaultPlayCommandOptions.PlayWithMods,
             };
         }
     }

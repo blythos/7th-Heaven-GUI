@@ -56,6 +56,15 @@ namespace AppUI.Classes.Themes
                 case AppTheme.SeventhHeavenTheme:
                     return new SeventhHeavenTheme();
 
+                case AppTheme.DeckDark:
+                    return new Deck.Themes.DeckDarkTheme();
+
+                case AppTheme.DeckLight:
+                    return new Deck.Themes.DeckLightTheme();
+
+                case AppTheme.DeckFF7:
+                    return new Deck.Themes.DeckFF7Theme();
+
                 default:
                     return null;
             }
